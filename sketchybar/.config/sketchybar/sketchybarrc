@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# SketchyBar — Tokyo Night top bar with AeroSpace workspace pills.
+# Reload: `sketchybar --reload` or `brew services restart sketchybar`.
+
+source "$HOME/.config/sketchybar/colors.sh"
+
+PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
+
+# ── Bar ──────────────────────────────────────────────────────────────
+sketchybar --bar \
+  height=32          \
+  blur_radius=30     \
+  position=top       \
+  sticky=on          \
+  padding_left=10    \
+  padding_right=10   \
+  color=$BAR_COLOR   \
+  corner_radius=0    \
+  y_offset=0
+
+# ── Default item defaults ────────────────────────────────────────────
+sketchybar --default \
+  updates=when_shown                          \
+  icon.font="JetBrainsMono Nerd Font:Bold:14.0" \
+  icon.color=$WHITE                           \
+  label.font="JetBrainsMono Nerd Font:Bold:13.0" \
+  label.color=$WHITE                          \
+  background.color=$ITEM_BG_COLOR             \
+  background.corner_radius=6                  \
+  background.height=24                        \
+  padding_left=6 padding_right=6              \
+  label.padding_left=4 label.padding_right=4  \
+  icon.padding_left=6 icon.padding_right=6
+
+# ── Custom events ────────────────────────────────────────────────────
+# Must exist before anything --subscribe's to it, otherwise the
+# subscription is silently ignored and pills never refresh.
+sketchybar --add event aerospace_workspace_change
+
+# ── Left: AeroSpace workspace pills 1..9 ─────────────────────────────
+for sid in 1 2 3 4 5 6 7 8 9; do
+  sketchybar --add item space.$sid left \
+             --subscribe space.$sid aerospace_workspace_change \
+             --set space.$sid \
+                 icon=$sid \
+                 icon.padding_left=8 icon.padding_right=8 \
+                 label.drawing=off \
+                 background.drawing=on \
+                 background.color=$ITEM_BG_COLOR \
+                 script="$PLUGIN_DIR/aerospace.sh $sid"
+done
+
+sketchybar --add item space_separator left \
+           --set space_separator icon= label.drawing=off background.drawing=off padding_left=6 padding_right=6
+
+# ── Middle: focused app name ─────────────────────────────────────────
+sketchybar --add item front_app center \
+           --set front_app icon.drawing=off background.drawing=off \
+                          script="$PLUGIN_DIR/front_app.sh" \
+           --subscribe front_app front_app_switched aerospace_workspace_change
+
+# ── Right (installed right-to-left) ──────────────────────────────────
+sketchybar --add item clock right \
+           --set clock update_freq=10 icon= script="$PLUGIN_DIR/clock.sh" \
+           --add item battery right \
+           --set battery update_freq=120 script="$PLUGIN_DIR/battery.sh" \
+           --subscribe battery system_woke power_source_change \
+           --add item network right \
+           --set network update_freq=3 script="$PLUGIN_DIR/network.sh" \
+           --subscribe network mouse.clicked system_woke \
+           --add item mem right \
+           --set mem update_freq=15 script="$PLUGIN_DIR/mem.sh" \
+           --subscribe mem mouse.clicked system_woke \
+           --add item cpu right \
+           --set cpu update_freq=3 script="$PLUGIN_DIR/cpu.sh" \
+           --subscribe cpu mouse.clicked system_woke
+
+sketchybar --update
