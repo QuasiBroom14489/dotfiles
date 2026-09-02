@@ -1,0 +1,60 @@
+# Ghostty — Tokyo Night
+# Docs: https://ghostty.org/docs/config
+
+theme = tokyonight
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 14
+font-feature = +liga
+font-feature = +calt
+adjust-cell-height = 10%
+
+# Window / chrome
+window-decoration = false
+window-padding-x = 12
+window-padding-y = 10
+window-padding-balance = true
+background-opacity = 0.93
+background-blur-radius = 20
+window-save-state = always
+macos-titlebar-style = hidden
+macos-non-native-fullscreen = true
+
+# Bell — visual only. Ghostty has no audible bell option;
+# omitting `audio` from bell-features means silence.
+bell-features = system,attention
+
+# Cursor
+cursor-style = block
+cursor-style-blink = false
+shell-integration-features = cursor,sudo,title
+
+# Scrollback
+scrollback-limit = 100000
+
+# Ghostty opens a plain login shell. Zellij is opt-in via the `zj` function.
+#
+# This used to read:
+#   command = "zsh -l -c 'zellij attach --create main'"
+# which attached EVERY new window to the one session named `main`. Zellij
+# mirrors a session across all attached clients, so the second window was a
+# duplicate view of the first rather than a new terminal — and windows piled
+# up in workspace 1 as you opened more trying to get a real one.
+#
+# AeroSpace already tiles windows; Zellij's job here is persistence, not
+# layout. Run `zj` (or `zj <name>`) when you want a session that survives
+# closing the window.
+
+# Keybinds — Cmd stays macOS-native so muscle memory survives outside terminal.
+keybind = cmd+t=new_tab
+keybind = cmd+w=close_surface
+keybind = cmd+shift+n=new_window
+keybind = cmd+d=new_split:right
+keybind = cmd+shift+d=new_split:down
+keybind = cmd+shift+i=prompt_tab_title
+
+# Palette tweak: keep AeroSpace's active-border blue matched
+foreground = #c0caf5
+background = #1a1b26
+selection-foreground = #1a1b26
+selection-background = #7aa2f7

@@ -1,0 +1,24 @@
+// zellij --layout class-notes
+// Split for reviewing lecture notes while running code snippets from the same class.
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="notes" focus=true {
+        pane split_direction="vertical" {
+            pane command="nvim" {
+                args "-c" "e ~/Library/Mobile Documents/iCloud~md~obsidian/Documents/LifeVault"
+            }
+            pane
+        }
+    }
+    tab name="repl" {
+        pane
+    }
+}

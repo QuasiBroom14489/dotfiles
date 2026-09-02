@@ -1,0 +1,66 @@
+# Starship — Tokyo Night, single-line, fast
+# Docs: https://starship.rs/config
+
+add_newline = false
+command_timeout = 750
+
+format = """
+[](fg:#7aa2f7)\
+$directory\
+[](fg:#7aa2f7 bg:#292e42)\
+$git_branch$git_status\
+[](fg:#292e42 bg:#1a1b26)\
+$python$nodejs$rust$golang$lua\
+$cmd_duration\
+$line_break\
+$character"""
+
+[character]
+success_symbol = "[❯](bold #9ece6a)"
+error_symbol   = "[❯](bold #f7768e)"
+vimcmd_symbol  = "[❮](bold #bb9af7)"
+
+[directory]
+style = "bg:#7aa2f7 fg:#1a1b26 bold"
+format = "[ $path ]($style)"
+truncation_length = 3
+truncate_to_repo = true
+truncation_symbol = "…/"
+
+[git_branch]
+symbol = " "
+style = "bg:#292e42 fg:#c0caf5"
+format = "[ $symbol$branch ]($style)"
+
+[git_status]
+style = "bg:#292e42 fg:#f7768e"
+format = "[$all_status$ahead_behind ]($style)"
+
+[cmd_duration]
+min_time = 500
+format = " [ $duration](#e0af68)"
+
+[python]
+symbol = " "
+style  = "bg:#1a1b26 fg:#7dcfff"
+format = "[ $symbol$version ]($style)"
+
+[nodejs]
+symbol = " "
+style  = "bg:#1a1b26 fg:#9ece6a"
+format = "[ $symbol$version ]($style)"
+
+[rust]
+symbol = " "
+style  = "bg:#1a1b26 fg:#ff9e64"
+format = "[ $symbol$version ]($style)"
+
+[golang]
+symbol = " "
+style  = "bg:#1a1b26 fg:#7dcfff"
+format = "[ $symbol$version ]($style)"
+
+[lua]
+symbol = " "
+style  = "bg:#1a1b26 fg:#7aa2f7"
+format = "[ $symbol$version ]($style)"

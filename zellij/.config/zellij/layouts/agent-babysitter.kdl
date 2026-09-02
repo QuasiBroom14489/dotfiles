@@ -1,0 +1,25 @@
+// zellij --layout agent-babysitter
+// Four panes for keeping an eye on multiple long-running agents (herdr-backed).
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="agents" focus=true {
+        pane split_direction="horizontal" {
+            pane split_direction="vertical" {
+                pane name="agent-1"
+                pane name="agent-2"
+            }
+            pane split_direction="vertical" {
+                pane name="agent-3"
+                pane name="logs"
+            }
+        }
+    }
+}
