@@ -45,7 +45,7 @@ scripts/      → desktop.sh (macOS defaults), wallpaper.sh
 
 ## Desktop
 
-Nine widgets on the wallpaper, all Tokyo Night, all edited in
+Ten widgets on the wallpaper, all Tokyo Night, all edited in
 `ubersicht/widgets`:
 
 | Widget | Where | Shows |
@@ -59,6 +59,7 @@ Nine widgets on the wallpaper, all Tokyo Night, all edited in
 | `now-playing` | bottom centre | Spotify track, progress, animated equaliser — hidden when nothing is loaded |
 | `agenda` | top right | Today's calendar events (`icalBuddy`) |
 | `assignments` | bottom right | What's due across every class, overdue first |
+| `golden-dome` | middle right | The Golden Dome, rendered as rotating ASCII. Purely decorative |
 
 `system` reuses the exact CPU and memory formulas from the SketchyBar plugins,
 so the bar and the desktop never disagree. `assignments` reads the Canvas-synced

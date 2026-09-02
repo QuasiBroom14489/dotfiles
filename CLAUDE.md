@@ -57,17 +57,26 @@ Neither binds a chord the other uses. Keep it that way — nothing should depend
 
 ## The desktop layer
 
-Nine Übersicht widgets draw on the wallpaper, in three columns:
+Ten Übersicht widgets draw on the wallpaper, in three columns:
 
 | Column | Widgets |
 |---|---|
 | Left | `class-strip` (today's courses), `day-tape` (day progress), `focus` (open Current Sprint items) |
 | Centre | `clock`, `weather`, `system`, `now-playing` |
-| Right | `agenda` (today's calendar), `assignments` (what's due) |
+| Right | `agenda` (today's calendar), `golden-dome` (decorative), `assignments` (what's due) |
 
 `day-tape` is top-anchored at 300px, which clears `class-strip` on its longest
 day (Tue/Thu, four classes). Adding a fifth class to a day means re-checking
-that number.
+that number. `golden-dome` is likewise top-anchored at 300px in the right
+column, which is why `agenda` above it now carries a `MAX_ITEMS` cap — it was
+the one widget that would grow without limit.
+
+`golden-dome` is the only widget that drives its own frame loop: a 15fps
+`setInterval` at module scope writing into its `<pre>`. Animation must not go
+through `refreshFrequency`, which would spawn a shell fifteen times a second.
+The timer is guarded on `window.__ndDomeTimer` so a re-bundle replaces it
+instead of stacking a second one, and the element is looked up every tick
+rather than captured, so the loop survives Übersicht replacing the node.
 
 Positions are hard-coded and chosen so the top-anchored and bottom-anchored
 cards can't meet: check the numbers before adding a ninth. Centred cards use
@@ -214,6 +223,24 @@ fill. A transition is motion that means something happened; an infinite
 animation is just noise competing with the windows in front of it. The
 playhead's transition duration deliberately equals its `refreshFrequency` so
 each tick hands off to the next and the line glides rather than steps.
+
+**ASCII-render geometry is limited by the character grid, not by the maths.**
+Three things cost real time in `golden-dome.jsx` and are worth not repeating:
+
+- `ASPECT` must be `charAdvance / lineHeight`, measured rather than assumed.
+  JetBrains Mono Nerd Font advances **0.684em**, not the 0.6em of the plain
+  font. Guessing squashed the object vertically and made every subsequent
+  proportion judgement wrong. Verify by rendering a sphere and checking it is
+  circular before tuning anything else.
+- **Detail finer than a character cell becomes noise.** A colonnade of 16
+  modelled columns across a drum ~32 cells wide put each column on well under a
+  cell and rendered as static. Eight shaded bands read where geometry cannot.
+  Same reason the cornice is a flat band: as a torus, its overhang threw stray
+  marks several cells clear of the silhouette.
+- **Perspective is stronger than it looks.** At `K2 = 5` the object's own depth
+  swung `1/z` by ~20%, so the near face of the drum projected visibly wider than
+  the far face and the base flared out past the cornice. `K2 = 11` with `K1`
+  scaled to match is near-orthographic and fixes it.
 
 **A column chart's last column collapses** — `flex: 1 1 0` and
 `grid-auto-columns: 1fr` both did this in `weather.jsx`, with and without
