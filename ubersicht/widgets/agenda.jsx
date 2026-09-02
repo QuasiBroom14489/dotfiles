@@ -26,6 +26,11 @@ export const command =
 
 export const refreshFrequency = 300000; // 5 min — calendars don't move fast
 
+// This card is top-anchored above `golden-dome` in the right column, so an
+// uncapped list would grow straight into it on a heavy day. Same cap and
+// footer as focus.jsx and assignments.jsx.
+const MAX_ITEMS = 8;
+
 export const className = `
   right: 24px;
   top: ${BAR_CLEARANCE};
@@ -71,6 +76,7 @@ const parse = (output) =>
 
 export const render = ({ output }) => {
   const events = parse(output);
+  const shown = events.slice(0, MAX_ITEMS);
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
@@ -84,10 +90,10 @@ export const render = ({ output }) => {
   return (
     <div>
       <h1>Today</h1>
-      {events.length === 0 ? (
+      {shown.length === 0 ? (
         <div className="empty">No events.</div>
       ) : (
-        events.map((e, i) => {
+        shown.map((e, i) => {
           const s = startMinutes(e.when);
           let state = "";
           if (i === nextIdx) state = "next";
@@ -102,6 +108,9 @@ export const render = ({ output }) => {
             </div>
           );
         })
+      )}
+      {events.length > shown.length && (
+        <div className="note">+{events.length - shown.length} more today</div>
       )}
     </div>
   );
