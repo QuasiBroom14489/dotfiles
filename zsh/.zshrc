@@ -17,6 +17,7 @@ SAVEHIST=100000
 setopt SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_REDUCE_BLANKS INC_APPEND_HISTORY
 
 # ── Completion ───────────────────────────────────────────────────────
+fpath=($HOME/dotfiles/zsh/completions $fpath)
 autoload -Uz compinit && compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
@@ -87,6 +88,11 @@ zj() {
   zellij attach --create "${1:-main}"
 }
 alias zjl="zellij list-sessions"
+
+# proj — one Zellij session per project folder (~/dotfiles/bin/proj).
+#   proj            fuzzy-pick a project and resume it
+#   proj NAME       resume / start NAME        proj note TEXT   leave a note
+# Hyper+J and the desktop shelf call the same script. Completion: zsh/completions/_proj.
 
 # ── Tool integrations ────────────────────────────────────────────────
 # Starship prompt

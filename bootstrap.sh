@@ -37,6 +37,8 @@ link "$DOTFILES/karabiner/.config/karabiner"   "$CONFIG/karabiner"
 link "$DOTFILES/hammerspoon/.hammerspoon"      "$HOME/.hammerspoon"
 link "$DOTFILES/zsh/.zshrc"                    "$HOME/.zshrc"
 link "$DOTFILES/zsh/.zshenv"                   "$HOME/.zshenv"
+link "$DOTFILES/proj/.config/proj"             "$CONFIG/proj"
+link "$DOTFILES/bin/proj"                      "$HOME/.local/bin/proj"
 
 # Übersicht keeps its widgets under Application Support rather than
 # ~/.config. Its server resolves a symlinked widget directory (it lstats the

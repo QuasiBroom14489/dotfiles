@@ -75,6 +75,39 @@ Vesper "follow the workspace" watcher was removed for exactly that reason.
 
 ---
 
+## Projects — `bin/proj`
+
+`proj` maps each project folder to one Zellij session named by the folder's
+lowercase slug, and attaches / resurrects / creates it. It is the single
+source of truth for every front end: the terminal picker today, the Hyper+J
+launcher and the wallpaper shelf next (plan: `~/.claude/plans/project-hub.md`).
+Linked by bootstrap to `~/.local/bin/proj`; config `proj/.config/proj/projects.conf`;
+state (notes, pinned slugs) in `~/.local/state/proj/`; layouts `proj-code.kdl`,
+`proj-course.kdl`; completion `zsh/completions/_proj` (on fpath, because the
+grok installer's trailing `compinit -C` drops any `compdef` made earlier).
+
+Contract front ends rely on — keep it stable:
+
+- `proj status --tsv|--json` — columns `slug path kind type state clients dirty
+  branch last parent note`. Zero stderr in every normal state (Übersicht turns
+  one stderr byte into a 500), runs under `env -i`, ~0.4 s for 40 repos, and
+  every git call uses `--no-optional-locks` so polling never writes to repos.
+- `proj attach NAME` exits **3** when the session already has a client: focus
+  that window instead of attaching a mirror. A client can be an ssh login or a
+  hung process, so a launcher that finds no window may retry with `--force`.
+- **No fuzzy resolution** for attach / end / note. A wrong guess (`ds` →
+  `alphalab-dsr`) would open or kill the wrong session. Fuzzy belongs to the picker.
+- `~/DataClub` is a hard-coded `never` floor that holds even if the config is
+  missing — no git command may ever run inside it.
+- `LC_COLLATE=C` is pinned so slugs are identical under Hammerspoon's empty
+  locale and Ghostty's UTF-8 one; slugs that have a session or note are pinned
+  in `state/slugs` so a newly created folder can't steal them.
+- `dataStructures` (EXITED) and `datastructures` (live) share one cache
+  directory on case-insensitive APFS. Don't `delete-session` the former — it
+  deletes the live session's save. proj folds case and the live one wins.
+
+---
+
 ## The desktop layer
 
 Ten Übersicht widgets draw on the wallpaper, in three columns:

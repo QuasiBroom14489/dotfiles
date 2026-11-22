@@ -1,0 +1,29 @@
+// proj-code — the layout `proj attach` gives a NEW code project.
+// Only used when the session is created; resuming restores whatever the
+// session looked like when you left it. cwd is the project folder (proj cd's
+// there before creating the session).
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="edit" focus=true {
+        pane command="nvim" {
+            args "."
+        }
+    }
+    tab name="run" {
+        pane split_direction="vertical" {
+            pane
+            pane
+        }
+    }
+    tab name="git" {
+        pane command="lazygit"
+    }
+}

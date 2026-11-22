@@ -1,0 +1,447 @@
+#!/bin/zsh -f
+# proj — start or resume a project's workspace.
+#
+# One project = one folder = one Zellij session (named by the folder's slug).
+# Resuming reattaches that session: tabs, panes and cwd come back, even after a
+# reboot (Zellij resurrects EXITED sessions from its own cache).
+#
+# Every front end calls this script, so behaviour lives in exactly one place:
+#   terminal    `proj`                  fzf picker
+#   Hyper+J     Hammerspoon launcher    `proj status --json`, then `proj attach`
+#   wallpaper   Übersicht shelf         `proj status --tsv`
+#
+#   proj                         pick a project (fzf) and attach
+#   proj NAME | proj attach NAME [--force] [--dry-run]
+#   proj status [--tsv|--json]   every project with session state
+#   proj note [TEXT...]          show / set the current project's note
+#   proj note -p NAME [TEXT...]  ... for another project
+#   proj end NAME                stop a session (stays resurrectable)
+#   proj new NAME [--course]     mkdir ~/NAME, git init, attach
+#   proj path NAME | which | names
+#
+# NAME is an exact slug, a folder path, or a prefix that matches one project.
+# There is no fuzzy guessing: a typo must never create, attach or stop the
+# wrong session. The picker (`proj` alone) is where fuzzy search lives.
+#
+# Config: ~/.config/proj/projects.conf.  State: ~/.local/state/proj/.
+#
+# Exit codes: 0 ok · 1 error · 3 the session already has a client attached.
+# On 3 the caller should focus that window; if it finds none (the client is
+# an ssh login or a hung process), it may retry with --force.
+
+emulate -L zsh
+setopt extended_glob null_glob pipe_fail no_unset
+
+# Hammerspoon and Übersicht start us with a bare PATH and no locale. Pin the
+# collation so glob order (and therefore slug assignment) is identical in
+# every caller — the slug is the key that status and attach agree on.
+path=(/opt/homebrew/bin /usr/bin /bin /usr/sbin /sbin $path)
+export LC_COLLATE=C
+
+SELF=${0:A}   # $0 becomes the function name inside functions (function_argzero)
+CONF=${PROJ_CONF:-$HOME/.config/proj/projects.conf}
+STATE=${PROJ_STATE:-$HOME/.local/state/proj}
+NOTES=$STATE/notes
+SLUGMAP=$STATE/slugs          # path<TAB>slug, written once a project has state
+ZJ_CACHE=$HOME/Library/Caches/org.Zellij-Contributors.Zellij/contract_version_1/session_info
+
+# Hands-off folders, whatever the config says (or if it is missing).
+NEVER_FLOOR=($HOME/DataClub)
+
+die()  { print -u2 -- "proj: $*"; exit 1 }
+info() { print -u2 -- "proj: $*" }
+
+slugify() {
+  local LC_CTYPE=C s=${1:l}
+  s=${s//[^a-z0-9-]/-}
+  s=${s//-##/-}; s=${s##-}; s=${s%%-}
+  print -r -- ${s:-project}
+}
+
+under_never() {  # path → true if it is, or lives under, a never path
+  local n
+  for n in $NEVER; do [[ $1 == $n || $1 == $n/* ]] && return 0; done
+  return 1
+}
+
+gitdir_of() {  # path → absolute git dir for a linked worktree, else nothing
+  [[ -f $1/.git ]] || return 1
+  local gd=$(head -1 $1/.git 2>/dev/null)
+  gd=${gd#gitdir: }
+  [[ -n $gd ]] || return 1
+  [[ $gd == /* ]] || gd=$1/$gd
+  print -r -- ${gd:A}
+}
+
+# ── Registry ─────────────────────────────────────────────────────────
+# Fills parallel arrays P_SLUG P_PATH P_KIND (code|course). Hidden projects
+# are dropped unless $1 == all.
+typeset -ga P_SLUG P_PATH P_KIND NEVER HIDE C_PATH C_KIND
+typeset -gA SLUG_OF_PATH SLUG_TAKEN PINNED
+
+_candidate() {  # path kind — collect, dedupe, apply never
+  local p=${1:A}
+  [[ -d $p && $p != *[$'\t\n']* ]] || return
+  (( ${C_PATH[(Ie)$p]} )) && return
+  under_never $p && return
+  local gd
+  if gd=$(gitdir_of $p); then under_never $gd && return; fi
+  C_PATH+=$p; C_KIND+=$2
+}
+
+_base_slug() {  # path → slug before collision handling
+  local p=$1 base=${1:t}
+  # A generic folder name ("main" in ~/0npace/main) says nothing: use the
+  # parent's. "main" is also zj's default session, so it is never a slug.
+  [[ ${base:l} == (main|master|app|src|repo|code|trunk) ]] && base=${p:h:t}
+  local s=$(slugify $base)
+  [[ $s == main ]] && s=$(slugify "${p:h:t}-main")
+  print -r -- $s
+}
+
+_assign_slugs() {
+  PINNED=()
+  if [[ -r $SLUGMAP ]]; then
+    local mp ms
+    while IFS=$'\t' read -r mp ms; do [[ -n $mp && -n $ms ]] && PINNED[$mp]=$ms; done < $SLUGMAP
+  fi
+  SLUG_OF_PATH=(); SLUG_TAKEN=()
+  local i p s anc n
+  # Projects that already have a session or note keep the slug they had…
+  for (( i = 1; i <= ${#C_PATH}; i++ )); do
+    p=${C_PATH[i]}; s=${PINNED[$p]-}
+    [[ -n $s && -z ${SLUG_TAKEN[$s]-} ]] || continue
+    SLUG_OF_PATH[$p]=$s; SLUG_TAKEN[$s]=1
+  done
+  # …everyone else gets the base slug, qualified by ancestors until unique.
+  for (( i = 1; i <= ${#C_PATH}; i++ )); do
+    p=${C_PATH[i]}
+    [[ -n ${SLUG_OF_PATH[$p]-} ]] && continue
+    s=$(_base_slug $p); anc=${p:h}
+    while [[ -n ${SLUG_TAKEN[$s]-} ]]; do
+      if [[ $anc == / || $anc == $HOME ]]; then
+        n=2; while [[ -n ${SLUG_TAKEN[$s-$n]-} ]]; do (( n++ )); done
+        s=$s-$n; break
+      fi
+      s=$(slugify "${anc:t}-$s"); anc=${anc:h}
+    done
+    SLUG_OF_PATH[$p]=$s; SLUG_TAKEN[$s]=1
+  done
+}
+
+pin_slug() {  # slug path — remember this assignment so newcomers can't take it
+  mkdir -p $STATE
+  [[ -r $SLUGMAP ]] && \grep -q -F -x -- "$2"$'\t'"$1" $SLUGMAP 2>/dev/null && return
+  print -r -- "$2"$'\t'"$1" >> $SLUGMAP
+}
+
+load_registry() {
+  local include_hidden=${1:-}
+  local -a scan course add words
+  NEVER=($NEVER_FLOOR); HIDE=(); C_PATH=(); C_KIND=(); P_SLUG=(); P_PATH=(); P_KIND=()
+  if [[ -r $CONF ]]; then
+    local line directive w
+    while IFS= read -r line; do
+      [[ $line == [[:space:]]#\#* ]] && continue
+      line=${line%%[[:space:]]\#*}              # trailing comment: " # …"
+      words=(${(Q)${(z)line}})
+      (( ${#words} >= 2 )) || continue
+      directive=${words[1]}; shift words
+      local -a expanded=()
+      for w in $words; do
+        w=${w/#\~/$HOME}
+        if [[ $w == *[\*\?\[]* ]]; then expanded+=(${~w}); else expanded+=($w); fi
+      done
+      case $directive in
+        scan)   scan+=($expanded) ;;
+        course) course+=($expanded) ;;
+        add)    add+=($expanded) ;;
+        hide)   HIDE+=($expanded) ;;
+        never)  NEVER+=(${expanded:A}) ;;
+      esac
+    done < $CONF
+  else
+    scan=($HOME/*(/))
+  fi
+  local d
+  for d in $course; do _candidate $d course; done
+  for d in $add;    do _candidate $d code; done
+  for d in $scan;   do [[ -e $d/.git ]] && _candidate $d code; done
+  _assign_slugs
+
+  local i s
+  for (( i = 1; i <= ${#C_PATH}; i++ )); do
+    s=${SLUG_OF_PATH[${C_PATH[i]}]}
+    [[ $include_hidden != all ]] && (( ${HIDE[(Ie)$s]} )) && continue
+    P_SLUG+=$s; P_PATH+=${C_PATH[i]}; P_KIND+=${C_KIND[i]}
+  done
+}
+
+# NAME → index into P_* (in $REPLY): exact slug, then folder path, then a
+# prefix that matches exactly one slug. Runs in the caller's shell so the
+# registry arrays stay loaded — never call it inside $( ).
+resolve() {
+  local q=${1:l} i
+  REPLY=0
+  [[ -n $q ]] || return 1
+  load_registry all
+  i=${P_SLUG[(Ie)$q]}; (( i )) && { REPLY=$i; return 0 }
+  local d=$1
+  [[ $d == \~* ]] && d=$HOME${d#\~}
+  if [[ -d $d ]]; then i=${P_PATH[(Ie)${d:A}]}; (( i )) && { REPLY=$i; return 0 }; fi
+  local -a hits=(${(M)P_SLUG:#${q}*})
+  (( ${#hits} == 1 )) && { REPLY=${P_SLUG[(Ie)$hits[1]]}; return 0 }
+  if (( ${#hits} > 1 )); then
+    info "'$1' matches ${#hits} projects: ${(j:, :)hits[1,6]}"
+  else
+    local -a near=(${(f)"$(print -l -- $P_SLUG | fzf --filter=$q 2>/dev/null | head -3)"})
+    if (( ${#near} )); then info "no project '$1' — did you mean: ${(j:, :)near}?"
+    else info "no project '$1'"; fi
+  fi
+  return 1
+}
+
+# ── Zellij state ─────────────────────────────────────────────────────
+# ZJ_STATE[slug] = live|exited. Names are folded to lowercase and a live
+# session wins over an exited one of the same name (APFS is case-insensitive,
+# so "dataStructures" and "datastructures" share one cache directory).
+typeset -gA ZJ_STATE
+load_sessions() {
+  ZJ_STATE=()
+  local line name
+  zellij list-sessions --no-formatting 2>/dev/null | while IFS= read -r line; do
+    [[ $line == *' [Created '* ]] || continue
+    name=${${line%% \[Created *}:l}
+    if [[ $line == *'(EXITED'* ]]; then
+      [[ ${ZJ_STATE[$name]-} == live ]] || ZJ_STATE[$name]=exited
+    else
+      ZJ_STATE[$name]=live
+    fi
+  done
+}
+
+clients_of() {  # slug → number of attached clients (0 if none / not live)
+  local out
+  out=$(zellij --session $1 action list-clients 2>/dev/null) || { print 0; return }
+  local -a lines=(${(f)out})          # header + one line per client
+  print $(( ${#lines} > 1 ? ${#lines} - 1 : 0 ))
+}
+
+layout_for() {  # kind → layout name in ~/.config/zellij/layouts
+  [[ $1 == course ]] && print proj-course || print proj-code
+}
+
+# ── Status ───────────────────────────────────────────────────────────
+mtime() { [[ -e $1 ]] && /usr/bin/stat -f %m $1 2>/dev/null || print 0 }
+
+project_type() {  # path → short label shown on cards
+  local p=$1
+  local -a g
+  g=($p/*.xcodeproj(N[1]) $p/Package.swift(N) $p/project.yml(N)); (( $#g )) && { print swift; return }
+  [[ -e $p/package.json ]] && { print web; return }
+  [[ -e $p/Cargo.toml ]]   && { print rust; return }
+  g=($p/(pyproject.toml|requirements.txt|setup.py)(N)); (( $#g )) && { print python; return }
+  g=($p/(#i)(makefile|CMakeLists.txt)(N) $p/*.(c|cpp|cc|h|hpp)(N[1])); (( $#g )) && { print c/c++; return }
+  g=($p/*.circ(N[1])); (( $#g )) && { print logisim; return }
+  g=($p/*.ipynb(N[1])); (( $#g )) && { print notebook; return }
+  print code
+}
+
+# One TSV row per project, gathered in parallel (git is the slow part).
+# Columns: slug path kind type state clients dirty branch last_epoch parent note
+#   dirty/branch/parent are "-" when unknown; parent is the main repo's slug
+#   when the folder is a linked git worktree.
+status_rows() {
+  load_registry
+  load_sessions
+  local tmp=$(mktemp -d ${TMPDIR:-/tmp}/proj.XXXXXX)
+  trap "/bin/rm -rf ${(q)tmp}" EXIT INT TERM
+  local i
+  for (( i = 1; i <= ${#P_SLUG}; i++ )); do
+    {
+      local p=${P_PATH[i]} s=${P_SLUG[i]} dirty=- branch=- commit=0 parent=- out gd j
+      if gd=$(gitdir_of $p); then
+        j=${P_PATH[(Ie)${gd%%/.git/worktrees/*}]}
+        (( j )) && parent=${P_SLUG[j]}
+      fi
+      if [[ -e $p/.git ]]; then
+        if out=$(git -C $p --no-optional-locks status --porcelain 2>/dev/null); then
+          local -a ch=(${(f)out}); dirty=${#ch}
+        fi
+        branch=$(git -C $p --no-optional-locks branch --show-current 2>/dev/null)
+        commit=$(git -C $p --no-optional-locks log -1 --format=%ct 2>/dev/null)
+      fi
+      [[ ${commit:-0} == 0 ]] && commit=$(mtime $p)   # not git: folder mtime
+      local state=${ZJ_STATE[$s]-none} clients=0
+      [[ $state == live ]] && clients=$(clients_of $s)
+      # Last activity: newest of last commit / folder, session save, note edit.
+      local last=${commit:-0} t
+      for t in $(mtime $ZJ_CACHE/$s/session-metadata.kdl) $(mtime $NOTES/$s); do
+        (( t > last )) && last=$t
+      done
+      local note=""
+      [[ -r $NOTES/$s ]] && note=$(head -1 $NOTES/$s 2>/dev/null)
+      note=${note//[$'\t\r']/ }
+      print -r -- "$s"$'\t'"$p"$'\t'"${P_KIND[i]}"$'\t'"$(project_type $p)"$'\t'"$state"$'\t'"$clients"$'\t'"$dirty"$'\t'"${branch:--}"$'\t'"$last"$'\t'"$parent"$'\t'"$note" > $tmp/$i
+    } &
+  done
+  wait
+  local -a rows=($tmp/*(N))
+  (( ${#rows} )) || return 0          # bare `cat` would read stdin and hang
+  # Live first, then saved (EXITED), then new; most recently active first.
+  /bin/cat $rows | awk -F'\t' -v OFS='\t' '
+    { r = ($5 == "live") ? 0 : ($5 == "exited") ? 1 : 2; print r, $0 }' \
+    | sort -t$'\t' -k1,1n -k10,10nr | cut -f2-
+}
+
+cmd_status() {
+  case ${1:-} in
+    --tsv|"") status_rows ;;
+    --json)
+      status_rows | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {
+          slug: .[0], path: .[1], kind: .[2], type: .[3], state: .[4],
+          clients: (.[5] | tonumber), dirty: (if .[6] == "-" then null else (.[6] | tonumber) end),
+          branch: (if .[7] == "-" then null else .[7] end),
+          last: (.[8] | tonumber), parent: (if .[9] == "-" then null else .[9] end),
+          note: .[10] })' ;;
+    *) die "status: unknown flag $1" ;;
+  esac
+}
+
+# ── Attach ───────────────────────────────────────────────────────────
+cmd_attach() {
+  local name="" force=0 dry=0 a
+  for a in "$@"; do
+    case $a in
+      --force) force=1 ;; --dry-run) dry=1 ;;
+      -*) die "attach: unknown flag $a" ;;
+      *) name=$a ;;
+    esac
+  done
+  [[ -n $name ]] || die "attach: which project?"
+  resolve $name || exit 1
+  local slug=${P_SLUG[REPLY]} dir=${P_PATH[REPLY]} kind=${P_KIND[REPLY]}
+  if [[ -n ${ZELLIJ:-} ]] && (( ! dry )); then
+    die "already inside Zellij session '${ZELLIJ_SESSION_NAME:-?}' — detach (Ctrl-o d) first"
+  fi
+  load_sessions
+  local state=${ZJ_STATE[$slug]-none}
+  local -a cmd
+  case $state in
+    live)
+      if (( ! force )) && (( $(clients_of $slug) > 0 )); then
+        info "$slug is already open in another window"
+        exit 3
+      fi
+      cmd=(zellij attach $slug) ;;
+    exited)
+      # Resurrects from Zellij's saved layout; command panes wait for Enter.
+      cmd=(zellij attach $slug) ;;
+    none)
+      cmd=(zellij attach --create $slug options --default-layout $(layout_for $kind)) ;;
+  esac
+  if (( dry )); then
+    print -r -- "cd ${(q)dir} && ${(@q)cmd}   # state=$state"
+    return
+  fi
+  pin_slug $slug $dir
+  print -r -- $slug > $STATE/last
+  cd $dir || die "can't cd to $dir"
+  exec $cmd
+}
+
+# ── Notes ────────────────────────────────────────────────────────────
+current_slug() {
+  load_registry all
+  # Trust the Zellij session name only if it is one of ours.
+  local z=${ZELLIJ_SESSION_NAME:-}
+  if [[ -n $z ]] && (( ${P_SLUG[(Ie)${z:l}]} )); then print ${z:l}; return; fi
+  local here=${PWD:A} i best=0 bestlen=0
+  for (( i = 1; i <= ${#P_PATH}; i++ )); do
+    if [[ $here == ${P_PATH[i]} || $here == ${P_PATH[i]}/* ]] && (( ${#P_PATH[i]} > bestlen )); then
+      best=$i; bestlen=${#P_PATH[i]}
+    fi
+  done
+  (( best )) && print ${P_SLUG[best]}
+  return 0
+}
+
+cmd_note() {
+  local slug="" dir=""
+  if [[ ${1:-} == -p ]]; then
+    (( $# >= 2 )) || die "note: -p needs a project"
+    resolve $2 || exit 1
+    slug=${P_SLUG[REPLY]}; dir=${P_PATH[REPLY]}; shift 2
+  else
+    slug=$(current_slug)
+    [[ -n $slug ]] || die "note: not inside a project — use: proj note -p NAME [TEXT]"
+    load_registry all; dir=${P_PATH[${P_SLUG[(Ie)$slug]}]}
+  fi
+  mkdir -p $NOTES
+  if (( $# )); then
+    print -r -- "$*" > $NOTES/$slug
+    pin_slug $slug $dir
+    info "note saved for $slug"
+  elif [[ -r $NOTES/$slug ]]; then
+    /bin/cat $NOTES/$slug
+  fi
+}
+
+# ── Other commands ───────────────────────────────────────────────────
+cmd_end() {
+  (( $# == 1 )) || die "end: give exactly one project"
+  resolve $1 || exit 1
+  local slug=${P_SLUG[REPLY]}
+  load_sessions
+  [[ ${ZJ_STATE[$slug]-} == live ]] || die "$slug has no running session"
+  zellij kill-session $slug && info "$slug stopped (resurrect with: proj $slug)"
+}
+
+cmd_new() {
+  local name="" kind=code a
+  for a in "$@"; do
+    case $a in --course) kind=course ;; -*) die "new: unknown flag $a" ;; *) name=$a ;; esac
+  done
+  [[ -n $name ]] || die "new: give a name"
+  [[ $name != */* && $name != .* ]] || die "new: NAME is a folder name in ~, not a path"
+  local dir=$HOME/$name
+  NEVER=($NEVER_FLOOR); under_never $dir && die "new: $dir is in a hands-off folder"
+  [[ -e $dir ]] && die "$dir already exists"
+  mkdir -p $dir && git -C $dir init -q -b main || die "couldn't create $dir"
+  print -r -- "# $name" > $dir/README.md
+  # A course folder needs registering: scan only finds git repos, as code.
+  [[ $kind == course ]] && print -r -- "course ${(q)dir}" >> $CONF
+  info "created $dir (git, branch main). GitHub: gh repo create ${(q)name} --private --source ${(q)dir}"
+  cmd_attach $dir
+}
+
+cmd_pick() {
+  [[ -t 0 && -t 1 ]] || die "no terminal — use: proj attach NAME"
+  local self=${(q)SELF} row
+  row=$(status_rows | awk -F'\t' -v OFS='\t' '{
+      dot = ($5 == "live") ? "\033[32m●\033[0m" : ($5 == "exited") ? "\033[33m◐\033[0m" : "\033[90m○\033[0m"
+      dirty = ($7 != "-" && $7 > 0) ? sprintf(" \033[33m+%s\033[0m", $7) : ""
+      wt = ($10 != "-") ? sprintf(" \033[90m↳ %s\033[0m", $10) : ""
+      note = ($11 != "") ? sprintf("  \033[90m%s\033[0m", $11) : ""
+      print $1, dot " " $1 wt " \033[90m" $4 "\033[0m" dirty note }' \
+    | fzf --ansi --delimiter=$'\t' --with-nth=2 --no-sort --prompt='project ❯ ' \
+          --header='enter: resume   ● live  ◐ saved  ○ new' \
+          --preview="p=\$($self path {1}) && [ -n \"\$p\" ] || exit 0; $self note -p {1} 2>/dev/null; echo; git -C \"\$p\" --no-optional-locks log --oneline -8 --color=always 2>/dev/null || /bin/ls \"\$p\"" \
+          --preview-window=right,50%,border-left)
+  [[ -n $row ]] || return 0
+  cmd_attach ${row%%$'\t'*}
+}
+
+case ${1:-} in
+  "")            cmd_pick ;;
+  attach|a)      shift; cmd_attach "$@" ;;
+  status|ls)     shift; cmd_status "$@" ;;
+  note|n)        shift; cmd_note "$@" ;;
+  end)           shift; cmd_end "$@" ;;
+  new)           shift; cmd_new "$@" ;;
+  path)          shift; resolve ${1:-} || exit 1; print -r -- ${P_PATH[REPLY]} ;;
+  which)         current_slug ;;
+  names)         load_registry; (( ${#P_SLUG} )) && print -l -- $P_SLUG; exit 0 ;;
+  -h|--help|help) sed -n '2,30p' $SELF | sed 's/^# \{0,1\}//' ;;
+  *)             cmd_attach "$@" ;;
+esac

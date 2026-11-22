@@ -24,7 +24,8 @@ brew "bat"
 brew "ripgrep"
 brew "fd"
 brew "git-delta"
-brew "jq"                      # SketchyBar plugins use it
+brew "jq"                      # SketchyBar plugins + proj --json use it
+brew "lazygit"                 # git tab in the proj-* Zellij layouts
 brew "yq"
 
 # ── Band 3: Scripting & agents ───────────────────────────────────────

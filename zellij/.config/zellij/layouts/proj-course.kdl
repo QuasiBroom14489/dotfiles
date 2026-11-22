@@ -1,0 +1,31 @@
+// proj-course — the layout `proj attach` gives a NEW course project.
+// edit · test · student11 · git. The ssh pane starts suspended: press Enter
+// in it to connect, so opening the course never fires a login on its own.
+// (Milestone 5 turns the test tab into a re-run-on-save watcher.)
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="zellij:tab-bar"
+        }
+        children
+        pane size=2 borderless=true {
+            plugin location="zellij:status-bar"
+        }
+    }
+    tab name="edit" focus=true {
+        pane command="nvim" {
+            args "."
+        }
+    }
+    tab name="test" {
+        pane
+    }
+    tab name="student11" {
+        pane command="ssh" start_suspended=true {
+            args "zjohnso4@student11.cse.nd.edu"
+        }
+    }
+    tab name="git" {
+        pane command="lazygit"
+    }
+}

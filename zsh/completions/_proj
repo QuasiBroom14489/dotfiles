@@ -1,0 +1,11 @@
+#compdef proj
+# Completion for ~/dotfiles/bin/proj. Lives on fpath (not a compdef in .zshrc)
+# so a later `compinit -C` — the grok installer appends one — can't drop it.
+local -a cmds projects
+cmds=(attach status note end new path which names)
+projects=(${(f)"$(proj names 2>/dev/null)"})
+if (( CURRENT == 2 )); then
+  _alternative "commands:command:(${cmds})" "projects:project:(${projects})"
+elif [[ ${words[2]} == (attach|a|end|path) || ( ${words[2]} == (note|n) && ${words[CURRENT-1]} == -p ) ]]; then
+  compadd -- $projects
+fi
