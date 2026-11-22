@@ -49,8 +49,14 @@ function M.setup()
       vim.g.proj_session = true
       local file = M.session_file()
       if not file then return end
-      vim.cmd("silent! %bwipeout!") -- drop the directory buffer from `nvim .`
-      vim.cmd("silent! source " .. vim.fn.fnameescape(file))
+      -- Scheduled, not run inline: inside VimEnter another startup handler
+      -- has already fired FileType, so did_filetype() is true for the rest
+      -- of the event and `:setf` is a no-op — restored files came back with
+      -- no filetype, hence no LSP, highlighting or completion.
+      vim.schedule(function()
+        vim.cmd("silent! %bwipeout!") -- drop the directory buffer from `nvim .`
+        vim.cmd("silent! source " .. vim.fn.fnameescape(file))
+      end)
     end,
   })
 
