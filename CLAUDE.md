@@ -137,6 +137,15 @@ config is preserved as `NVIM_APPNAME=nvim-old` (`~/.config/nvim-old`,
 - `checkhealth` run headless reports snacks "setup did not run" and "no
   ghostty" — artifacts of no UI, not real. `tree-sitter` CLI must be on the
   real PATH (Brewfile), not only Mason's.
+- `lua/plugins/completion.lua` tunes blink.cmp: Tab accepts when the menu is
+  open (setting `<Tab>` disables LazyVim's own, so its snippet/AI chain is
+  repeated there), `exact` sort first, a kind column, and Python opens the
+  menu after `import `/`from `/`from x import `/commas (Pyright has no space
+  trigger). That show is `vim.schedule`d — blink closes the previous word's
+  menu *after* TextChangedI, so an immediate `show()` is undone. Test
+  completion over RPC (`nvim --headless --listen S`, `--remote-send` one key
+  at a time); feedkeys from a sourced script never enters insert mode, and a
+  key burst in the same send as the first InsertEnter is lost while blink loads.
 
 ### Python tests — `lua/config/pytools.lua` + `bin/ut`
 
