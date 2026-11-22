@@ -3,3 +3,6 @@
 .env
 .env.local
 secrets/
+
+# shell backups written by installers
+*.bak.*

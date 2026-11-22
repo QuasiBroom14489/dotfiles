@@ -1,10 +1,10 @@
 # dotfiles
 
-Personal macOS rice — keyboard-first, Tokyo Night, i3-style tiling.
+Personal macOS rice — keyboard-first, Tokyo Night, native Spaces with on-demand snapping.
 
 ## Stack
 
-- **WM:** AeroSpace + JankyBorders
+- **Windows:** native macOS desktops + Hammerspoon snapping + JankyBorders (no tiling WM — AeroSpace was removed Oct 2026 after crash-stranded windows)
 - **Terminal:** Ghostty (plain shell) + Zellij (opt-in persistence via `zj`)
 - **Shell:** zsh + Starship + Atuin + zoxide
 - **Scripting:** Hammerspoon + Karabiner-Elements
@@ -25,12 +25,12 @@ cd ~/dotfiles
 ./bootstrap.sh
 ```
 
-`bootstrap.sh` symlinks every config into place, then runs `brew bundle`. Anything requiring GUI permissions (Karabiner, Hammerspoon, AeroSpace accessibility) is printed as a post-install checklist.
+`bootstrap.sh` symlinks every config into place, then runs `brew bundle`. Anything requiring GUI permissions (Karabiner, Hammerspoon accessibility) is printed as a post-install checklist.
 
 ## Layout
 
 ```
-aerospace/    → ~/.config/aerospace/
+borders/      → ~/.config/borders/
 ghostty/      → ~/.config/ghostty/
 zellij/       → ~/.config/zellij/
 starship/     → ~/.config/starship.toml
@@ -82,7 +82,7 @@ widgets sit.
 
 ## Keybindings cheat sheet
 
-### AeroSpace + Hammerspoon (Hyper)
+### Hyper (Karabiner → Hammerspoon / macOS)
 
 | Key | Action |
 |---|---|
@@ -90,10 +90,10 @@ widgets sit.
 | Caps (hold) | Control |
 | Right Cmd (hold) | Hyper (⌘⌥⌃) |
 | Right Cmd + Shift | Second layer (⌘⌥⌃⇧) |
-| Hyper + H/J/K/L | Focus window |
-| Hyper + Shift + H/J/K/L | Move window |
-| Hyper + 1..9 | Switch AeroSpace workspace |
-| Hyper + Shift + 1..9 | Move window to workspace |
+| Hyper + 1..9 | Switch to desktop N (macOS shortcut, set by `scripts/desktop.sh`) |
+| Hyper + ← / → | Snap window to left / right half |
+| Hyper + ↑ | Fill the screen (keeps gaps + bar) |
+| Hyper + ↓ | Centre window at 70% × 80% |
 | Hyper + Return | New Ghostty window |
 | Hyper + O | Open Obsidian daily note |
 | Hyper + C | Open current class-week Canvas |
@@ -106,7 +106,6 @@ widgets sit.
 | Hyper + Shift + F | Focus mode |
 | Hyper + Shift + D | Demo mode |
 | Hyper + Shift + N | Normal mode |
-| Hyper + R | Reload AeroSpace |
 | Hyper + Shift + R | Reload Hammerspoon |
 
 Hyper deliberately excludes Shift, so `Hyper + Shift` is a distinct second layer.
@@ -247,7 +246,7 @@ split right, `c` new tab, `,` rename tab, `n`/`p` next/prev tab, `z` fullscreen,
 `o` next pane, `x` close pane, `d` detach, `[` scroll mode, `Space` next swap
 layout.
 
-Zellij lives on Ctrl and AeroSpace on Hyper (⌘⌥⌃), so plain `Alt + H/L` reaches
+Zellij lives on Ctrl and the desktop on Hyper (⌘⌥⌃), so plain `Alt + H/L` reaches
 Zellij untouched. Ghostty's Cmd binds never reach the terminal, so `Cmd + T`
 makes a Ghostty tab even inside a Zellij session.
 

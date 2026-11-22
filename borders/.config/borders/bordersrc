@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# JankyBorders — read by `borders` on startup (brew services start borders).
+# Used to be launched by AeroSpace's after-startup-command; with no tiling
+# WM it runs as its own login service. Presentation modes in Hammerspoon
+# still recolour it live with `borders active_color=…`.
+options=(
+  style=round
+  width=6.0
+  hidpi=on
+  active_color=0xff7aa2f7
+  inactive_color=0xff565f89
+)
+
+borders "${options[@]}"

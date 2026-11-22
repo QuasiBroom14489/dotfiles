@@ -2,12 +2,10 @@
 # Grouped by rice-plan band. Comment out anything you're not ready for yet.
 
 # ── Taps ─────────────────────────────────────────────────────────────
-tap "nikitabobko/tap"          # AeroSpace
 tap "FelixKratz/formulae"      # SketchyBar + JankyBorders
 tap "koekeishiya/formulae"     # SKHD (optional)
 
 # ── Band 1: Foundation ───────────────────────────────────────────────
-cask "aerospace"
 cask "karabiner-elements"
 cask "ghostty"
 cask "raycast"

@@ -18,7 +18,7 @@ MODE="${1:-apply}"
 # domain key type value  — every key this script owns, in one table, so apply
 # and restore can never drift apart.
 SETTINGS=(
-  # ── Dock: present but unreachable. AeroSpace + Raycast cover everything it
+  # ── Dock: present but unreachable. Spaces + Raycast cover everything it
   # did, and a 1000s autohide delay means it never appears on an accidental
   # cursor trip to the bottom edge. `killall Dock` still brings it back for a
   # deliberate Mission Control gesture.
@@ -30,10 +30,14 @@ SETTINGS=(
   "com.apple.dock|springboard-show-duration|-float|0.1"
   "com.apple.dock|springboard-hide-duration|-float|0.1"
 
+  # ── Keep Spaces in a fixed order. By default macOS reshuffles them by most
+  # recent use, which makes the numbered SketchyBar pills and Hyper+1..9 point
+  # at a different desktop every day.
+  "com.apple.dock|mru-spaces|-bool|false"
+
   # ── Stop a click on the wallpaper from sweeping every window off-screen.
-  # macOS 14 turned this on by default and it is actively hostile to a tiling
-  # WM: with widgets on the desktop you now have three cards you cannot click
-  # without losing your layout.
+  # macOS 14 turned this on by default: with widgets on the desktop you now
+  # have three cards you cannot click without losing your layout.
   "com.apple.WindowManager|EnableStandardClickToShowDesktop|-bool|false"
 
   # ── No icons on the desktop. The desktop is a surface for Übersicht
@@ -64,6 +68,26 @@ restore() {
   ok "deleted ${#SETTINGS[@]} preference keys — system defaults are back"
 }
 
+# ── Hyper+1..9 → "Switch to Desktop N" ────────────────────────────────
+# These are macOS's own Mission Control shortcuts (symbolic hotkeys
+# 118–126), just rebound from Ctrl+N to Hyper+N (⌘⌥⌃ = 1835008) so the
+# old workspace muscle memory still works with no window manager running.
+# They live in one nested dict, so they cannot be rows in SETTINGS —
+# restore disables them rather than deleting the whole dict.
+SPACE_KEYCODES=(18 19 20 21 23 22 26 28 25)   # virtual keycodes for 1..9
+HYPER_MASK=1835008
+
+space_hotkeys() {
+  local enabled="$1" i
+  for i in "${!SPACE_KEYCODES[@]}"; do
+    defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add $((118 + i)) \
+      "<dict><key>enabled</key><${enabled}/><key>value</key><dict><key>parameters</key><array><integer>65535</integer><integer>${SPACE_KEYCODES[$i]}</integer><integer>${HYPER_MASK}</integer></array><key>type</key><string>standard</string></dict></dict>"
+  done
+  # Makes the change live without logging out.
+  /System/Library/PrivateFrameworks/SystemAdministration.framework/Resources/activateSettings -u 2>/dev/null || true
+  ok "Hyper+1..9 desktop switching $([[ $enabled == true ]] && echo on || echo off)"
+}
+
 # Dock, Finder and WindowManager each cache their prefs at launch, so none of
 # the above takes effect until the owning process is restarted. These restart
 # themselves immediately; the desktop flickers once.
@@ -79,11 +103,13 @@ case "$MODE" in
   apply)
     say "Applying desktop presentation defaults…"
     apply
+    space_hotkeys true
     restart_agents
     ;;
   --restore|restore)
     say "Restoring macOS desktop defaults…"
     restore
+    space_hotkeys false
     restart_agents
     ;;
   *)

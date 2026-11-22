@@ -16,11 +16,9 @@ const HISTORY_LEN = 36;
 const history = [];
 
 export const className = `
-  left: 0;
-  right: 0;
-  margin: 0 auto;
-  top: 432px;
-  width: 380px;
+  left: 24px;
+  top: 500px;
+  width: 300px;
   ${card(tn.teal, "520ms")}
 
   .spark {

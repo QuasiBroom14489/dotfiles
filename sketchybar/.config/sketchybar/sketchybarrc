@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SketchyBar — Tokyo Night top bar with AeroSpace workspace pills.
+# SketchyBar — Tokyo Night top bar with native-Space pills.
 # Reload: `sketchybar --reload` or `brew services restart sketchybar`.
 
 source "$HOME/.config/sketchybar/colors.sh"
@@ -32,23 +32,29 @@ sketchybar --default \
   label.padding_left=4 label.padding_right=4  \
   icon.padding_left=6 icon.padding_right=6
 
-# ── Custom events ────────────────────────────────────────────────────
-# Must exist before anything --subscribe's to it, otherwise the
-# subscription is silently ignored and pills never refresh.
-sketchybar --add event aerospace_workspace_change
-
-# ── Left: AeroSpace workspace pills 1..9 ─────────────────────────────
+# ── Left: desktop pills 1..9 ─────────────────────────────────────────
+# One pill per regular desktop, numbered the way Hyper+N counts them
+# (macOS's "Switch to Desktop N", registered by scripts/desktop.sh).
+# SketchyBar's built-in `space` items are NOT used: they number every
+# Mission Control Space, full-screen apps included, so pill 2 could be a
+# full-screen app while Hyper+2 went to the second desktop. The
+# `spaces` controller asks Hammerspoon for the real desktop list on
+# every Space change and paints all nine pills in one pass.
 for sid in 1 2 3 4 5 6 7 8 9; do
   sketchybar --add item space.$sid left \
-             --subscribe space.$sid aerospace_workspace_change \
              --set space.$sid \
+                 drawing=off \
                  icon=$sid \
                  icon.padding_left=8 icon.padding_right=8 \
                  label.drawing=off \
                  background.drawing=on \
                  background.color=$ITEM_BG_COLOR \
-                 script="$PLUGIN_DIR/aerospace.sh $sid"
+                 click_script="$PLUGIN_DIR/space_click.sh $sid"
 done
+
+sketchybar --add item spaces left \
+           --set spaces drawing=off updates=on script="$PLUGIN_DIR/spaces.sh" \
+           --subscribe spaces space_change display_change system_woke
 
 sketchybar --add item space_separator left \
            --set space_separator icon= label.drawing=off background.drawing=off padding_left=6 padding_right=6
@@ -57,7 +63,7 @@ sketchybar --add item space_separator left \
 sketchybar --add item front_app center \
            --set front_app icon.drawing=off background.drawing=off \
                           script="$PLUGIN_DIR/front_app.sh" \
-           --subscribe front_app front_app_switched aerospace_workspace_change
+           --subscribe front_app front_app_switched space_change
 
 # ── Right (installed right-to-left) ──────────────────────────────────
 sketchybar --add item clock right \
@@ -73,6 +79,9 @@ sketchybar --add item clock right \
            --subscribe mem mouse.clicked system_woke \
            --add item cpu right \
            --set cpu update_freq=3 script="$PLUGIN_DIR/cpu.sh" \
-           --subscribe cpu mouse.clicked system_woke
+           --subscribe cpu mouse.clicked system_woke \
+           --add item vesper right \
+           --set vesper update_freq=2 script="$PLUGIN_DIR/vesper.sh" \
+           --subscribe vesper mouse.clicked system_woke
 
 sketchybar --update

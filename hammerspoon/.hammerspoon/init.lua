@@ -13,14 +13,14 @@ if not hs.ipc.cliStatus() then hs.ipc.cliInstall() end
 -- ── Hyper key ──────────────────────────────────────────────────────
 -- Karabiner remaps Right Cmd to ⌘⌥⌃ — Shift is deliberately left out,
 -- so ⌘⌥⌃⇧ is a genuinely distinct second layer rather than the same
--- chord. Division of labour with AeroSpace:
+-- chord.
 --
---   Hyper + key         AeroSpace owns window/workspace arrangement
---   Hyper + Shift + key  Hammerspoon owns modes and its own reload
---
--- Hammerspoon also owns the Hyper-layer bindings that act on an
--- APPLICATION rather than a window: Hyper+O/C/P (Obsidian jumps) and
--- Hyper+Return (new Ghostty window). AeroSpace binds none of those.
+-- There is no tiling WM any more (AeroSpace was dropped: it crashed on
+-- `focus` over floating windows and stranded every hidden window in a
+-- screen corner). Windows live on native Spaces; macOS itself owns
+-- Hyper+1..9 to switch them (scripts/desktop.sh writes those shortcuts),
+-- and Hammerspoon owns everything else on both layers, including the
+-- Hyper+arrow snapping below.
 local hyper      = {"cmd", "alt", "ctrl"}
 local hyperShift = {"cmd", "alt", "ctrl", "shift"}
 
@@ -75,9 +75,36 @@ bind("return", function()
 end)
 
 -- Hyper+Shift+R → reload Hammerspoon.
--- (Plain Hyper+R belongs to AeroSpace's reload-config; before Shift was
--- freed both reloads sat on the same chord and fought over it.)
 bindShift("r", function() hs.reload() end)
+
+-- ── Window snapping (Hyper + arrows) ───────────────────────────────
+-- On demand, never automatic: nothing moves a window unless you press a
+-- key. Gaps match the old tiling layout so the desktop looks the same.
+-- The top inset clears SketchyBar whether or not the menu bar is shown.
+local GAP, BAR_HEIGHT = 8, 32
+
+local function usableFrame(screen)
+  local full, vis = screen:fullFrame(), screen:frame()
+  local top = math.max(vis.y, full.y + BAR_HEIGHT) + GAP
+  return hs.geometry.rect(vis.x + GAP, top, vis.w - 2 * GAP, vis.y + vis.h - GAP - top)
+end
+
+-- unit = fractions of the usable frame. Inner edges give up half a gap
+-- each so two snapped halves sit exactly GAP apart.
+local function snap(unit)
+  local win = hs.window.focusedWindow()
+  if not win then return end
+  local u = usableFrame(win:screen())
+  local x, w = u.x + u.w * unit.x, u.w * unit.w
+  if unit.x > 0 then x, w = x + GAP / 2, w - GAP / 2 end
+  if unit.x + unit.w < 1 then w = w - GAP / 2 end
+  win:setFrame(hs.geometry.rect(x, u.y + u.h * unit.y, w, u.h * unit.h))
+end
+
+bind("left",  function() snap({ x = 0,   y = 0,   w = 0.5, h = 1 })   end)
+bind("right", function() snap({ x = 0.5, y = 0,   w = 0.5, h = 1 })   end)
+bind("up",    function() snap({ x = 0,   y = 0,   w = 1,   h = 1 })   end)
+bind("down",  function() snap({ x = 0.15, y = 0.1, w = 0.7, h = 0.8 }) end)
 
 local function shell(cmd) hs.execute(cmd .. " > /dev/null 2>&1 &", true) end
 
@@ -218,8 +245,14 @@ local function currentSystemTheme()
   if ok and out and out:match("Dark") then return "dark" else return "light" end
 end
 
+-- Only on an actual change: this runs every 5 minutes, and a full
+-- `sketchybar --reload` each time made the bar blink for nothing.
 local function applyTheme(t)
-  local f = io.open(themeFile, "w"); if f then f:write(t); f:close() end
+  local f = io.open(themeFile, "r")
+  local old = f and f:read("*a") or nil
+  if f then f:close() end
+  if old == t then return end
+  f = io.open(themeFile, "w"); if f then f:write(t); f:close() end
   shell("sketchybar --reload")
 end
 
@@ -263,5 +296,17 @@ end
 
 memWatcher = hs.timer.doEvery(120, checkMemoryHogs)
 checkMemoryHogs()
+
+-- Vesper assistant bindings (Hyper+A to launch/focus, ⌘⌥J to ask inline).
+-- Lives in vesper.lua so the HUD project owns its own keymap.
+local okVesper, vesperErr = pcall(require, "vesper")
+if not okVesper then
+  hs.printf("vesper.lua failed to load: %s", tostring(vesperErr))
+end
+
+-- SketchyBar's desktop pills ask Hammerspoon what to draw. At login the bar
+-- usually starts first, gets no answer and draws nothing, so repaint once
+-- Hammerspoon is actually up.
+shell("sketchybar --trigger space_change")
 
 hs.alert.show("Hammerspoon loaded", 1)

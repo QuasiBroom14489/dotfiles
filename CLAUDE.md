@@ -1,6 +1,6 @@
-# CLAUDE.md — macOS rice (AeroSpace · Ghostty · Hammerspoon · SketchyBar)
+# CLAUDE.md — macOS rice (Spaces · Ghostty · Hammerspoon · SketchyBar)
 
-Keyboard-first tiling setup. Everything here is symlinked into place by `./bootstrap.sh`.
+Keyboard-first setup on native macOS desktops — **no tiling window manager** (see *Window management* below). Everything here is symlinked into place by `./bootstrap.sh`.
 
 **Edit files in `~/dotfiles`, never in `~/.config`** — the latter are symlinks to the former. `git status` from `~/dotfiles` is the source of truth for what changed.
 
@@ -14,32 +14,52 @@ Karabiner maps held **Right Command → `⌘⌥⌃`**. Shift is deliberately **e
 
 | Layer | Chord | Owns |
 |---|---|---|
-| Hyper | `⌘⌥⌃` | Focus, navigation, jumps — non-destructive |
-| Hyper + Shift | `⌘⌥⌃⇧` | Moving windows, switching modes — acting |
+| Hyper | `⌘⌥⌃` | Jumps, desktop switching, window snapping |
+| Hyper + Shift | `⌘⌥⌃⇧` | Switching modes, screenshots, reload — acting |
 
-> **Never restore the old four-modifier Hyper (`⌘⌥⌃⇧`).** It consumed the whole modifier space, making `Hyper+Shift+X` identical to `Hyper+X`. That collapsed both layers into one and caused real collisions: `Hyper+R` was bound to *both* AeroSpace `reload-config` and Hammerspoon `hs.reload()`, and the desktop modes had to hide behind a `Hyper+V` submenu because Focus mode wanted `Hyper+F` (taken by fullscreen) and Presenting wanted `Hyper+P` (taken by the Pocket Inbox jump).
+> **Never restore the old four-modifier Hyper (`⌘⌥⌃⇧`).** It consumed the whole modifier space, making `Hyper+Shift+X` identical to `Hyper+X`. That collapsed both layers into one and caused real collisions: `Hyper+R` was bound to *both* the (since removed) AeroSpace `reload-config` and Hammerspoon `hs.reload()`, and the desktop modes had to hide behind a `Hyper+V` submenu because Focus mode wanted `Hyper+F` (taken by fullscreen) and Presenting wanted `Hyper+P` (taken by the Pocket Inbox jump).
 
 ### Before adding any binding, audit the keyspace
 
 ```sh
-grep -E '^alt.*=' ~/dotfiles/aerospace/.config/aerospace/aerospace.toml
-grep -E '^\s*bind(Shift)?\("' ~/dotfiles/hammerspoon/.hammerspoon/init.lua
+grep -nE 'bind(Shift)?\(|hotkey\.bind' ~/dotfiles/hammerspoon/.hammerspoon/init.lua ~/vesper/desktop/vesper.lua
 ```
 
-AeroSpace writes modifiers in a fixed `alt-shift-cmd-ctrl` order, so `alt-cmd-ctrl-f` (Hyper) and `alt-shift-cmd-ctrl-f` (Hyper+Shift) are **different chords** that look nearly identical. Read carefully.
+Plus `Hyper+1..9`, which are macOS's own "Switch to Desktop N" symbolic hotkeys
+(118–126), written by `scripts/desktop.sh` — they do not appear in any Lua file.
 
-Currently 48 chords, zero collisions. Free on both layers: `B E I Q T U X Y Z`.
-
-`A G S W` were spent on the Shottr screenshot bindings. Note that `D N` are free on
-the Hyper layer only and `C M O V` on the Shift layer only — a chord being free on
-one layer says nothing about the other.
+Free on both layers: `B E H I J K L M Q T U X Y Z`. `R` is free on the Hyper
+layer only (it was AeroSpace's reload). A chord being free on one layer says
+nothing about the other.
 
 ### Who owns what
 
-- **AeroSpace** — window/workspace *arrangement*, both layers.
-- **Hammerspoon** — anything acting on an *application*: `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload.
+- **macOS** — `Hyper+1..9` desktop switching (symbolic hotkeys from `desktop.sh`).
+- **Hammerspoon** — everything else: `Hyper+←/→/↑/↓` snapping, `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload; `vesper.lua` owns `Hyper+A/Space/Escape`, `⌘⌥J` and Tab+V.
 
-Neither binds a chord the other uses. Keep it that way — nothing should depend on which process wins an event race.
+Never bind a `Hyper+digit` in Hammerspoon — it would race the macOS shortcut.
+
+## Window management
+
+AeroSpace was removed on 2026-10-13. It crashed on `focus` over floating
+windows (upstream issue #1311, open in 0.21.3), and because it hides inactive
+workspaces by parking windows in a screen corner, every crash left slivers of
+windows stranded on screen. **Do not reintroduce a tiling WM without the user
+asking.** The rule now is: *nothing moves a window unless a key was pressed.*
+No watchers that reposition windows or switch desktops on activation — the
+Vesper "follow the workspace" watcher was removed for exactly that reason.
+
+- **Desktops** are native Spaces. `mru-spaces=false` keeps their order fixed.
+- **SketchyBar pills** are plain items painted by `plugins/spaces.sh`, which asks
+  Hammerspoon (`hs.spaces`) for the count of *user* desktops. SketchyBar's own
+  `space` items are deliberately not used: they number full-screen app Spaces
+  too, so pill N would disagree with `Hyper+N`. Clicks go through
+  `plugins/space_click.sh` → Hammerspoon posts `Hyper+N`.
+- **Snapping** is ~25 lines in `init.lua` (*Window snapping*): 8 px gaps, top
+  inset clears the 32 px bar. Hammerspoon ignores keystrokes it posts itself,
+  so test the geometry by calling the logic, not by `keyStroke`.
+- **JankyBorders and SketchyBar are `brew services`** (labels `sh.brew.*`).
+  Borders reads `borders/.config/borders/bordersrc`.
 
 ---
 
@@ -51,7 +71,7 @@ Neither binds a chord the other uses. Keep it that way — nothing should depend
 
 **Never add a startup `command` to the Ghostty config.** It used to run `zellij attach --create main`, which attached *every* window to one session. Zellij mirrors a session across all attached clients, so each new terminal was a duplicate view of the last, and windows piled up until tiling collapsed. Ghostty opens a plain login shell; Zellij is opt-in via the `zj` function in `.zshrc`.
 
-**AeroSpace and Zellij must not both do layout.** AeroSpace tiles windows; Zellij provides persistence only. Don't reintroduce overlap between them.
+**Zellij provides persistence only, not layout.** Windows are arranged by snapping; don't make Zellij the layout tool.
 
 ---
 
@@ -125,9 +145,8 @@ widget's command.
 ## Reload and verify
 
 ```sh
-aerospace reload-config --dry-run   # validate WITHOUT applying
-aerospace reload-config             # apply
 sketchybar --reload
+sketchybar --trigger space_change   # repaint desktop pills only
 source ~/.zshrc
 touch ~/dotfiles/ubersicht/widgets/*.jsx   # re-bundle + re-run all widgets
 ```
@@ -169,7 +188,10 @@ printf '%s' './lib/current-sprint.sh' | curl -s -X POST --data-binary @- \
   -H 'Origin: http://127.0.0.1:41416' http://127.0.0.1:41416/run/
 ```
 
-**Check exit codes directly, not through a pipe** — `cmd | head; echo $?` reports the *pipe's* status, not the command's. Redirect to a file instead. AeroSpace exits non-zero under `--warnings-as-errors` because of a pre-existing `config-version = 1` warning; without that flag it exits 0.
+**Check exit codes directly, not through a pipe** — `cmd | head; echo $?` reports the *pipe's* status, not the command's. Redirect to a file instead.
+
+**`hs -c` can hang when stdin is not a terminal** (it waits on input). Always
+give it `</dev/null`, and `-t <seconds>` for a timeout.
 
 **Hammerspoon:** `hs -c 'hs.reload()'` **hangs** — it kills the Lua state mid-call so the IPC response never arrives. Fire and forget:
 
@@ -187,18 +209,14 @@ Karabiner needs no reload; it watches `karabiner.json` and applies on save. Veri
 
 ## Constraints that look like bugs but aren't
 
-**Overlapping tiled windows** — the app is refusing to shrink, not AeroSpace misplacing it. Many macOS apps enforce a minimum width (Safari: 574 px). Three Safari windows need 1722 px on a 1512 px screen. Check real frames before blaming config:
+**A snapped window overlaps the centre line** — the app is refusing to shrink. Many macOS apps enforce a minimum width (Safari: 574 px). Check real frames before blaming config:
 
 ```sh
 hs -c 'for _,w in ipairs(hs.window.allWindows()) do local f=w:frame()
-  print(w:application():name(), w:id(), f.x, f.w, f.x+f.w) end'
+  print(w:application():name(), w:id(), f.x, f.w, f.x+f.w) end' </dev/null
 ```
 
-Fix with `Hyper + ,` (accordion), not by editing the config.
-
-**A window won't tile** — it's probably floating. `aerospace list-windows --workspace focused --format '%{app-name} | %{window-layout}'`; `floating` is the answer, `Hyper + Space` toggles it. Zoom, Teams, FaceTime, and System Settings float *by design*.
-
-**Windows parked far off-screen** (e.g. `x=1511` on a 1512 px display) are on a non-visible workspace. Normal AeroSpace behavior.
+**Hyper+N does nothing** — desktop N does not exist (add it in Mission Control), or the symbolic hotkeys were reset: re-run `./scripts/desktop.sh`. Full-screen apps are *not* desktops and are not counted.
 
 **A Ghostty window appeared on its own** — SketchyBar's CPU, memory, and network pills are buttons that each launch a diagnostic window.
 
@@ -268,12 +286,11 @@ genuinely appearing, something rewrote the key: re-run `./scripts/desktop.sh`.
 This setup has produced several symptoms whose obvious explanation was wrong. Prefer evidence:
 
 ```sh
-aerospace list-windows --all --format '%{window-id} | %{app-name} | layout=%{window-layout}'
 ps -Ao pid,etime,comm | grep '[G]hostty.app'      # instance count + age
 pgrep -x sketchybar borders                        # running?
 brew services list                                 # ...but registered as services?
 ```
 
-`sketchybar` and `borders` currently run as plain processes, **not** Homebrew services — they will not survive a reboot until someone runs `brew services start` for each.
+`sketchybar` and `borders` are Homebrew services and start at login. If `brew services list` shows them missing, `brew services start sketchybar borders`.
 
 State any command you run that changes visible state (opening windows, killing processes) — the user watches the screen and unexplained changes read as bugs.

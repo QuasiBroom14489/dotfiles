@@ -28,7 +28,7 @@ link() {
 }
 
 say "Linking configs…"
-link "$DOTFILES/aerospace/.config/aerospace"   "$CONFIG/aerospace"
+link "$DOTFILES/borders/.config/borders"       "$CONFIG/borders"
 link "$DOTFILES/ghostty/.config/ghostty"       "$CONFIG/ghostty"
 link "$DOTFILES/zellij/.config/zellij"         "$CONFIG/zellij"
 link "$DOTFILES/starship/.config/starship.toml" "$CONFIG/starship.toml"
@@ -51,7 +51,7 @@ if ! command -v brew >/dev/null; then
 fi
 
 say "Trusting third-party taps (required since Homebrew 4.x)…"
-for tap in nikitabobko/tap FelixKratz/formulae koekeishiya/formulae; do
+for tap in FelixKratz/formulae koekeishiya/formulae; do
   brew tap "$tap" 2>/dev/null || true
   brew trust --tap "$tap" 2>/dev/null || true
 done
@@ -80,6 +80,15 @@ fi
 
 open -a "Übersicht" 2>/dev/null || warn "Übersicht not installed — re-run brew bundle."
 
+# Übersicht has no "launch at login" toggle of its own, so a reboot silently
+# takes every desktop widget with it. Register it as a login item instead.
+if ! osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null \
+     | grep -q "Übersicht"; then
+  osascript -e 'tell application "System Events" to make login item at end \
+    with properties {path:"/Applications/Übersicht.app", hidden:false}' >/dev/null 2>&1 \
+    || warn "Couldn't register Übersicht as a login item — add it manually in System Settings → General → Login Items."
+fi
+
 # ── Post-install checklist ──
 cat <<'EOF'
 
@@ -88,8 +97,9 @@ cat <<'EOF'
 
 Manual steps left (they require GUI or system permissions):
 
-1. AeroSpace: open once, grant Accessibility in System Settings.
-   → System Settings → Privacy & Security → Accessibility → AeroSpace.
+1. Spaces: open Mission Control and add desktops until you have as
+   many as you want (the SketchyBar pills draw one per Space, up to 9).
+   Hyper+1..9 switch to them; scripts/desktop.sh registered those.
 
 2. Karabiner-Elements: open once, grant Input Monitoring +
    Accessibility. Then in Karabiner UI, verify the two complex
@@ -131,7 +141,6 @@ The dock, desktop icons and window animations are set by
 ./scripts/desktop.sh — `./scripts/desktop.sh --restore` puts them back.
 
 Restart your login session or log out/in when done, then reload:
-      aerospace reload-config
-      brew services restart sketchybar
+      brew services restart sketchybar borders
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 EOF
