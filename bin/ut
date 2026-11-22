@@ -1,0 +1,50 @@
+#!/bin/zsh -f
+# ut — run a Python project's tests the way VS Code does, from anywhere
+# inside the project. Interpreter, runner, allowed .env vars and unittest
+# args all come from ~/.config/nvim/lua/config/pytools.lua (the same file
+# Neovim's test runner uses), so terminal and editor always agree.
+#
+#   ut                         every test (VS Code's unittestArgs, else tests/)
+#   ut tests.test_x            one module      ut tests.test_x.TestY.test_z  one test
+#   ut -k name                 any extra args go to the runner
+emulate -L zsh
+path=(/opt/homebrew/bin /usr/bin /bin $path)
+PYTOOLS=${PYTOOLS:-$HOME/.config/nvim/lua/config/pytools.lua}
+
+local -a info envs uargs
+info=("${(@f)$(nvim --clean --headless -l $PYTOOLS --emit "$PWD" 2>/dev/null)}")
+(( ${#info} )) || { print -u2 "ut: couldn't read the project setup (is nvim installed?)"; exit 1 }
+
+local root= py= runner= line
+for line in $info; do
+  case $line in
+    "ROOT "*)   root=${line#ROOT } ;;
+    "PYTHON "*) py=${line#PYTHON } ;;
+    "RUNNER "*) runner=${line#RUNNER } ;;
+    "ENV "*)    envs+=("${line#ENV }") ;;
+    "ARG "*)    uargs+=("${line#ARG }") ;;
+  esac
+done
+
+cd $root || exit 1
+print -P "%F{8}ut: ${root/#$HOME/~} · $runner · ${py/#$HOME/~}%f" >&2
+
+local -a cmd
+if [[ $runner == pytest ]]; then
+  cmd=($py -m pytest "$@")
+elif (( $# )); then
+  cmd=($py -m unittest -v "$@")
+else
+  cmd=($py -m unittest discover $uargs)
+fi
+
+# Run, echo output live, and refuse a green result that ran nothing.
+local log=$(mktemp -t ut)
+env $envs $cmd 2>&1 | tee $log
+local rc=${pipestatus[1]}
+if [[ $runner == unittest ]] && \grep -q '^Ran 0 tests' $log; then
+  print -u2 "ut: no tests found — check the test folder name and the test_*.py pattern"
+  rc=5
+fi
+/bin/rm -f $log
+exit $rc

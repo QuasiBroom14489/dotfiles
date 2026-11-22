@@ -134,6 +134,23 @@ config is preserved as `NVIM_APPNAME=nvim-old` (`~/.config/nvim-old`,
   ghostty" — artifacts of no UI, not real. `tree-sitter` CLI must be on the
   real PATH (Brewfile), not only Mason's.
 
+### Python tests — `lua/config/pytools.lua` + `bin/ut`
+
+One module decides interpreter (project venv → VS Code default → uv), runner
+(VS Code's python.testing.*Enabled → pytest config → unittest; a venv that
+merely has pytest must NOT flip a unittest project), and environment. Neotest,
+nvim-dap-python and `ut` (which runs it via `nvim --clean -l … --emit`) all
+use it, so editor and terminal agree. Rules from review (2026-11-22):
+- **.env is allowlisted** (PYTHONPATH, DJANGO_SETTINGS_MODULE, PYTEST_ADDOPTS).
+  Loading it all leaked API keys into every LSP/child (alphalab's `claude -p`
+  would bill the API key) and let a repo set NODE_OPTIONS/GIT_CONFIG_*/PATH.
+- PYTHONPATH entries are made absolute, the unittest `-s` dir (or ./tests) is
+  prepended so sibling helpers import, and it prepends to the existing value.
+- `ut` exits 5 on "Ran 0 tests" — unittest discovery silently skips folders
+  without `__init__.py`, which read as a false green.
+- debugpy: Mason's build fails on Homebrew python@3.14 (ensurepip), so
+  dap-python uses `~/.local/share/nvim/debugpy` (uv venv, made by bootstrap).
+
 ### The Hyper+J launcher — `launcher.lua` + `launcher/launcher.html`
 
 One `hs.webview`, built at load and only shown/hidden (show ≈ 8 ms). Lessons

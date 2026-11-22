@@ -20,6 +20,11 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.lang.typescript" }, -- web projects
     { import = "lazyvim.plugins.extras.lang.json" },
     { import = "lazyvim.plugins.extras.lang.rust" },
+    -- Tests and debugging: neotest runs a test from inside the file (pass /
+    -- fail signs beside each test); nvim-dap steps through one. The python
+    -- extra adds the neotest-python and debugpy adapters on top of these.
+    { import = "lazyvim.plugins.extras.test.core" },
+    { import = "lazyvim.plugins.extras.dap.core" },
     { import = "plugins" },
   },
   defaults = { lazy = false, version = false },

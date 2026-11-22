@@ -40,6 +40,7 @@ link "$DOTFILES/zsh/.zshrc"                    "$HOME/.zshrc"
 link "$DOTFILES/zsh/.zshenv"                   "$HOME/.zshenv"
 link "$DOTFILES/proj/.config/proj"             "$CONFIG/proj"
 link "$DOTFILES/bin/proj"                      "$HOME/.local/bin/proj"
+link "$DOTFILES/bin/ut"                        "$HOME/.local/bin/ut"
 
 # Übersicht keeps its widgets under Application Support rather than
 # ~/.config. Its server resolves a symlinked widget directory (it lstats the
@@ -62,6 +63,16 @@ done
 say "Running brew bundle…"
 brew bundle --file="$DOTFILES/Brewfile" || warn "Some items failed — see output above. Re-run bootstrap after fixing."
 ok "brew bundle finished"
+
+# ── Python debugger for Neovim ──
+# Mason's debugpy build fails on Homebrew python@3.14 (broken ensurepip), so
+# nvim-dap-python uses this uv venv instead (lua/plugins/python-debug.lua).
+if [[ ! -x "$HOME/.local/share/nvim/debugpy/bin/python" ]] && command -v uv >/dev/null; then
+  say "Creating debugpy venv for Neovim…"
+  uv venv --quiet "$HOME/.local/share/nvim/debugpy" && \
+    uv pip install --quiet --python "$HOME/.local/share/nvim/debugpy/bin/python" debugpy && ok "debugpy ready" \
+    || warn "debugpy venv failed — Python debugging in Neovim will be unavailable"
+fi
 
 # ── Services ──
 say "Starting background services…"

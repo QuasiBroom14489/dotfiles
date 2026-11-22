@@ -183,6 +183,25 @@ const SHEET = [
     ["Space q s", "Restore session (outside a project)"],
     ["Space ?", "Keys for this buffer"],
   ]},
+  { title: "Tests & debugging", sub: "Python unittest / pytest", accent: "var(--red)", note: "✓ / ✗ appear beside each test. Uses the project's .venv and .env, like VS Code.", rows: [
+    ["Space t r", "Run the test under the cursor"],
+    ["Space t t", "Run every test in this file"],
+    ["Space t T", "Run all test files"],
+    ["Space t l", "Run the last test again"],
+    ["Space t w", "Watch: rerun this file on every save"],
+    ["Space t o", "Why it failed (output)"],
+    ["Space t s", "Test tree / summary"],
+    ["Space t d", "Debug the test under the cursor"],
+    "Debugger",
+    ["Space d b", "Toggle breakpoint"],
+    ["Space d c", "Continue"],
+    ["Space d O / i / o", "Step over / into / out"],
+    ["Space d u", "Debugger panels"],
+    ["Space d t", "Stop debugging"],
+    "In a terminal",
+    ["ut", "Run every unittest (project .venv + .env)"],
+    ["ut tests.test_x", "One file (or tests.test_x.TestY.test_z)"],
+  ]},
   { title: "Vim basics", accent: "var(--orange)", note: "Normal mode is home: Esc (or jk) always takes you back there.", rows: [
     ["i / a", "Insert before / after cursor"],
     ["o / O", "New line below / above"],
@@ -228,7 +247,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 
 // Shell commands render as green text; keys as <kbd> caps, one per press
 // ("Ctrl-g p" → two caps); connective words stay plain.
-const SHELL = /^(proj|zj|keys|ll|cd )/;
+const SHELL = /^(proj|zj|keys|ll|ut|cd )/;
 const PLAIN = new Set(["type", "or", "Visual", "/", "·"]);
 function keyHtml(k) {
   if (SHELL.test(k)) return `<span style="color:var(--green)">${esc(k)}</span>`;
