@@ -68,8 +68,8 @@ canvas() {
 }
 
 # ── Zellij (opt-in persistence) ──────────────────────────────────────
-# Ghostty opens a plain shell, so AeroSpace and Zellij no longer duplicate
-# each other's job: AeroSpace tiles windows, Zellij persists sessions.
+# Ghostty opens a plain shell, so window layout and Zellij no longer duplicate
+# each other's job: Hyper+arrows place windows, Zellij persists sessions.
 #
 #   zj          → attach to (or create) the long-lived "main" session
 #   zj notes    → attach to (or create) a session named "notes"
@@ -109,3 +109,15 @@ bindkey -e   # emacs-style; swap to `-v` for full vi mode if you want
 
 # ── Local overrides ──────────────────────────────────────────────────
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
+. "$HOME/.local/share/../bin/env"
+
+# >>> grok installer >>>
+export PATH="$HOME/.grok/bin:$PATH"
+fpath=(~/.grok/completions/zsh $fpath)
+autoload -Uz compinit && compinit -C
+# <<< grok installer <<<
+export DBT_PROFILES_DIR="$HOME/.dbt"
+
+# Cortex CLI completion (disable via /settings in cortex)
+[[ -s ~/.zsh/completions/cortex.zsh ]] && source ~/.zsh/completions/cortex.zsh
