@@ -106,6 +106,25 @@ Contract front ends rely on — keep it stable:
   directory on case-insensitive APFS. Don't `delete-session` the former — it
   deletes the live session's save. proj folds case and the live one wins.
 
+### Neovim — `nvim/.config/nvim` (LazyVim)
+
+LazyVim + extras clangd/python/typescript/json/rust, tokyonight-night. The old
+config is preserved as `NVIM_APPNAME=nvim-old` (`~/.config/nvim-old`,
+`~/.local/share/nvim-old`) — reference only, it is broken upstream.
+
+- `lua/config/proj.lua` restores the persistence.nvim session on VimEnter
+  **only** inside Zellij with no file args (bare `nvim` or `nvim .`), saves on
+  BufWritePost/FocusLost (a reboot skips VimLeavePre), and calls
+  `persistence.stop()` in any other nvim inside Zellij so an ad-hoc
+  `nvim file` can't overwrite the project session. Layouts start bare `nvim`.
+- Headless installs: `:MasonInstall` does NOT block headless, and LazyVim
+  starts some of the same installs itself ("Package is already installing").
+  Drive `mason-registry` and wait on `is_installing()`; parsers via
+  `require("nvim-treesitter").install(list):wait(ms)`.
+- `checkhealth` run headless reports snacks "setup did not run" and "no
+  ghostty" — artifacts of no UI, not real. `tree-sitter` CLI must be on the
+  real PATH (Brewfile), not only Mason's.
+
 ### The Hyper+J launcher — `launcher.lua` + `launcher/launcher.html`
 
 One `hs.webview`, built at load and only shown/hidden (show ≈ 8 ms). Lessons

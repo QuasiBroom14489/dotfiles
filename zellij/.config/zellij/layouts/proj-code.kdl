@@ -13,9 +13,7 @@ layout {
         }
     }
     tab name="edit" focus=true {
-        pane command="nvim" {
-            args "."
-        }
+        pane command="nvim"   // bare: Neovim restores this project's session
     }
     tab name="run" {
         pane split_direction="vertical" {

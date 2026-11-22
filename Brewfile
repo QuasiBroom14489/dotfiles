@@ -26,6 +26,7 @@ brew "fd"
 brew "git-delta"
 brew "jq"                      # SketchyBar plugins + proj --json use it
 brew "lazygit"                 # git tab in the proj-* Zellij layouts
+brew "tree-sitter-cli"         # Neovim: nvim-treesitter (main) compiles parsers with it
 brew "yq"
 
 # ── Band 3: Scripting & agents ───────────────────────────────────────
