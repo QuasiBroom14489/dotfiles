@@ -86,6 +86,16 @@ else
   hs.printf("launcher.lua failed to load: %s", tostring(launcher))
 end
 
+-- Hyper+/ (think "?") → controls reference: every key in this setup,
+-- Zellij, Neovim and lazygit on one filterable sheet (keys.lua +
+-- keys/keys.html). `keys` in a shell opens the same sheet.
+local okKeys, keys = pcall(require, "keys")
+if okKeys then
+  bind("/", keys.toggle)
+else
+  hs.printf("keys.lua failed to load: %s", tostring(keys))
+end
+
 -- Hyper+Shift+R → reload Hammerspoon.
 bindShift("r", function() hs.reload() end)
 
@@ -242,6 +252,7 @@ bindMode("n", modeNormal)
 -- so typing "flex" into the Hyper+J launcher would run Focus mode (and kill
 -- Slack). Opening the launcher disarms the menu first.
 if okLauncher then launcher.beforeShow = function() modeMenu:exit() end end
+if okKeys then keys.beforeShow = function() modeMenu:exit() end end
 
 -- Direct one-chord equivalents on the Shift layer. These are the bindings
 -- the modes always wanted: Hyper+F (Focus) and Hyper+P (Present) used to

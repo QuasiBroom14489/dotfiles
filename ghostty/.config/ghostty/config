@@ -58,3 +58,7 @@ foreground = #c0caf5
 background = #1a1b26
 selection-foreground = #1a1b26
 selection-background = #7aa2f7
+
+# Left Option sends Alt (Zellij: Alt+arrows / Alt+n; Neovim/zsh Meta keys).
+# Right Option still types special characters (é, ü, ©).
+macos-option-as-alt = left

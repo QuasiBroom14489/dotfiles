@@ -82,7 +82,7 @@ canvas() {
 zj() {
   if [[ -n "$ZELLIJ" ]]; then
     print -u2 "Already inside Zellij session '${ZELLIJ_SESSION_NAME}'."
-    print -u2 "Detach with Ctrl-o d before attaching to another."
+    print -u2 "Detach with Ctrl-g o d before attaching to another."
     return 1
   fi
   zellij attach --create "${1:-main}"
@@ -93,6 +93,9 @@ alias zjl="zellij list-sessions"
 #   proj            fuzzy-pick a project and resume it
 #   proj NAME       resume / start NAME        proj note TEXT   leave a note
 # Hyper+J and the desktop shelf call the same script. Completion: zsh/completions/_proj.
+
+# keys — the controls reference (same sheet as Hyper+/).
+alias keys="open -g hammerspoon://keys"
 
 # ── Tool integrations ────────────────────────────────────────────────
 # Starship prompt

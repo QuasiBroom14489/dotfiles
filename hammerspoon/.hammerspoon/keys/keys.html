@@ -1,0 +1,279 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Controls</title>
+<!--
+  Hyper+/ controls reference. Loaded once by keys.lua into a hidden
+  hs.webview; `keys` in a shell opens it through hammerspoon://keys.
+  The SHEET array below is the single source of truth — edit it here when
+  a binding changes (and keep the Obsidian "macOS Rice Reference" in sync).
+  Palette: ~/dotfiles/colors/tokyonight.sh.
+-->
+<style>
+  :root {
+    --bg: #1a1b26; --bg-dark: #16161e; --hl: #292e42; --gutter: #3b4261;
+    --comment: #565f89; --fg: #c0caf5; --fg-dark: #a9b1d6;
+    --blue: #7aa2f7; --cyan: #7dcfff; --green: #9ece6a; --magenta: #bb9af7;
+    --red: #f7768e; --yellow: #e0af68; --orange: #ff9e64; --teal: #1abc9c;
+    --font: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  body { font-family: var(--font); color: var(--fg); font-size: 12px; -webkit-user-select: none; cursor: default; }
+
+  #backdrop {
+    position: fixed; inset: 0; background: rgba(13, 14, 20, 0.88);
+    display: flex; justify-content: center; align-items: flex-start;
+    opacity: 0; transition: opacity 120ms ease-out;
+  }
+  body.open #backdrop { opacity: 1; }
+  #panel {
+    margin-top: 4vh; width: min(1320px, 94vw); max-height: 90vh;
+    display: flex; flex-direction: column;
+    background: var(--bg); border: 1px solid var(--gutter); border-radius: 12px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  }
+  #bar { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--hl); }
+  #title { color: var(--magenta); font-weight: 700; letter-spacing: .08em; }
+  #q {
+    flex: 1; background: transparent; border: 0; outline: 0; color: var(--fg);
+    font: inherit; font-size: 15px; caret-color: var(--magenta);
+  }
+  #q::placeholder { color: var(--comment); }
+  #hint { color: var(--comment); font-size: 11px; white-space: nowrap; }
+
+  #sheet { overflow-y: auto; padding: 14px 16px 16px; column-count: 3; column-gap: 14px; }
+  #sheet::-webkit-scrollbar { width: 0; }
+  .card {
+    break-inside: avoid; margin: 0 0 14px; border: 1px solid var(--gutter);
+    border-left: 2px solid var(--accent, var(--blue)); border-radius: 8px; padding: 9px 12px 10px;
+  }
+  .card h2 {
+    margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--hl);
+    font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent, var(--blue));
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .card h2 span { color: var(--comment); letter-spacing: .04em; text-transform: none; font-weight: 400; }
+  .row { display: grid; grid-template-columns: minmax(118px, auto) 1fr; gap: 10px; padding: 2px 0; align-items: baseline; }
+  .row .k { white-space: nowrap; color: var(--fg); }
+  .row .d { color: var(--fg-dark); }
+  .row.warn .d { color: var(--red); }
+  .sub { color: var(--comment); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; margin: 8px 0 2px; }
+  kbd {
+    font: inherit; font-size: 11px; color: var(--fg); background: var(--bg-dark);
+    border: 1px solid var(--gutter); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px;
+  }
+  mark { background: rgba(187, 154, 247, .28); color: inherit; border-radius: 2px; }
+  #empty { padding: 30px; color: var(--comment); text-align: center; column-span: all; }
+  .note { color: var(--comment); font-size: 11px; margin-top: 6px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<div id="backdrop">
+  <div id="panel">
+    <div id="bar">
+      <span id="title">CONTROLS</span>
+      <input id="q" placeholder="type to find a key — save, split, tab, detach, commit…" autocomplete="off" spellcheck="false">
+      <span id="hint">Hyper = right ⌘ &nbsp;·&nbsp; esc closes &nbsp;·&nbsp; Hyper+/ toggles</span>
+    </div>
+    <div id="sheet"></div>
+  </div>
+</div>
+<script>
+"use strict";
+// [key, description] rows; a string on its own is a sub-heading; a row with
+// a third element "warn" is shown in red. Keys: "+" joins chords, " " is a
+// sequence ("Ctrl-g t" = press Ctrl-g, then t).
+const SHEET = [
+  { title: "Start here", accent: "var(--magenta)", note: "In Neovim, press Space and wait — a menu shows every shortcut. In Zellij, the bottom bar shows what keys do right now.", rows: [
+    ["Hyper+J", "Open / resume a project"],
+    ["Hyper+/", "This sheet"],
+    ["Alt+← → ↑ ↓", "Move between panes (Zellij)"],
+    ["Ctrl-g o d", "Detach — leave the project running"],
+    ["Space Space", "Neovim: find a file"],
+    ["Ctrl-s", "Neovim: save"],
+    ["Space g g", "Neovim: git (lazygit)"],
+  ]},
+  { title: "Desktop", sub: "Hyper = hold right ⌘", accent: "var(--blue)", rows: [
+    ["Hyper+Return", "New terminal window"],
+    ["Hyper+← / →", "Snap window to left / right half"],
+    ["Hyper+↑ / ↓", "Fill screen / centre"],
+    ["Hyper+1 … 9", "Switch desktop"],
+    ["Hyper+J", "Project launcher"],
+    ["Hyper+/", "Controls (this)"],
+    ["Hyper+O", "Today's Obsidian note"],
+    ["Hyper+C", "This week's class Canvas"],
+    ["Hyper+P", "Pocket inbox"],
+    ["Hyper+A", "Toggle Vesper"],
+    ["Hyper+Space", "Vesper push-to-talk"],
+    ["Hyper+Esc", "Stop Vesper speaking"],
+    "Hyper + Shift — acting",
+    ["Hyper+Shift+S", "Screenshot an area"],
+    ["Hyper+Shift+W / A / G", "Screenshot window / all / scrolling"],
+    ["Hyper+Shift+F / P / D / N", "Focus / Present / Demo / Normal mode"],
+    ["Hyper+Shift+R", "Reload Hammerspoon"],
+  ]},
+  { title: "Project launcher", sub: "Hyper+J", accent: "var(--magenta)", rows: [
+    ["type", "Filter by name (vr → vesper-revamp) or note"],
+    ["↑ ↓ ← →", "Move between cards"],
+    ["Return", "Resume — or jump to its open window"],
+    ["Shift+Return", "Plain shell in the project folder"],
+    ["Ctrl-e", "Edit the project's note"],
+    ["Ctrl-x Ctrl-x", "Stop its session (still resumable)"],
+    ["Ctrl-n", "New project (Shift+Return = course)"],
+    ["Esc", "Clear search, then close"],
+  ]},
+  { title: "Projects in a shell", accent: "var(--magenta)", rows: [
+    ["proj", "Fuzzy-pick a project and resume it"],
+    ["proj NAME", "Resume / start NAME (prefix is fine)"],
+    ["proj note TEXT", "Leave a ‘where I left off’ note"],
+    ["proj note -p NAME", "Read another project's note"],
+    ["proj status", "Every project: state, changes, branch"],
+    ["proj end NAME", "Stop a session"],
+    ["proj new NAME", "New project in ~/NAME (--course)"],
+    ["zj NAME", "Ad-hoc Zellij session (not a project)"],
+    ["keys", "Open this sheet"],
+  ]},
+  { title: "Zellij — panes & tabs", sub: "starts locked: Ctrl keys go to your program", accent: "var(--green)", rows: [
+    "Instant (any time)",
+    ["Alt+← → ↑ ↓", "Move between panes (← → at edge: switch tab)"],
+    ["Alt+h j k l", "Same, vim-style"],
+    ["Alt+n", "New pane"],
+    ["Alt+f", "Show / hide floating panes"],
+    ["Alt+= / Alt+-", "Grow / shrink pane"],
+    ["Alt+i / Alt+o", "Move tab left / right"],
+    "Ctrl-g, then a mode letter",
+    ["Ctrl-g p", "Pane: n new · d below · r right · x close · f fullscreen · c rename"],
+    ["Ctrl-g t", "Tab: n new · x close · r rename · ← → switch · 1-9 go"],
+    ["Ctrl-g r", "Resize: h j k l grow · H J K L shrink"],
+    ["Ctrl-g m", "Move pane: h j k l"],
+    ["Ctrl-g s", "Scroll: j k · d u · f search · e edit in Neovim"],
+    ["Ctrl-g o", "Session: d detach · w session list"],
+    ["Esc / Return", "Back to locked"],
+    ["Ctrl-g Ctrl-q", "Quit — ends the whole session", "warn"],
+  ]},
+  { title: "Neovim — moving around", sub: "LazyVim", accent: "var(--cyan)", rows: [
+    ["Space Space", "Find file in project"],
+    ["Space /", "Search text in project (grep)"],
+    ["Space ,", "Switch between open files"],
+    ["Space f r", "Recent files"],
+    ["Space e", "File tree"],
+    ["-", "Folder as a buffer (oil): edit to rename / move"],
+    ["Shift+H / Shift+L", "Previous / next open file"],
+    ["Space b d", "Close this file"],
+    ["Ctrl-h j k l", "Move between splits"],
+    ["Space - / Space |", "Split below / right"],
+    ["Ctrl-o / Ctrl-i", "Jump back / forward"],
+    ["Ctrl-/", "Terminal"],
+  ]},
+  { title: "Neovim — code", accent: "var(--cyan)", rows: [
+    ["g d", "Go to definition"],
+    ["g r", "References"],
+    ["K", "Docs for the word under the cursor"],
+    ["Space c a", "Code action (quick fix)"],
+    ["Space c r", "Rename symbol"],
+    ["Space c f", "Format file"],
+    ["] d / [ d", "Next / previous problem"],
+    ["Space x x", "All problems (list)"],
+    ["g c c", "Comment line (g c in visual)"],
+    ["Ctrl-n / Ctrl-p", "Next / previous completion"],
+    ["Return", "Accept completion"],
+    ["Space g g", "lazygit"],
+    ["Space q s", "Restore session (outside a project)"],
+    ["Space ?", "Keys for this buffer"],
+  ]},
+  { title: "Vim basics", accent: "var(--orange)", note: "Normal mode is home: Esc (or jk) always takes you back there.", rows: [
+    ["i / a", "Insert before / after cursor"],
+    ["o / O", "New line below / above"],
+    ["Esc or j k", "Back to normal mode"],
+    ["Ctrl-s or :w", "Save"],
+    [":q / :q!", "Quit / quit without saving"],
+    ["u / Ctrl-r", "Undo / redo"],
+    ["h j k l", "Left down up right"],
+    ["w / b", "Next / previous word"],
+    ["0 / $", "Start / end of line"],
+    ["g g / G", "Top / bottom of file"],
+    ["Ctrl-d / Ctrl-u", "Half page down / up"],
+    ["v / V", "Select characters / lines"],
+    ["d d / y y / p", "Cut line / copy line / paste"],
+    ["Visual J / K", "Move selected lines down / up"],
+    ["c i w", "Change the word under the cursor"],
+    ["/ text · n / N", "Search · next / previous match"],
+    ["Ctrl-a", "Select all"],
+  ]},
+  { title: "lazygit", sub: "git tab · Space g g", accent: "var(--yellow)", rows: [
+    ["Tab / ← →", "Switch panel"],
+    ["Space", "Stage / unstage file"],
+    ["a", "Stage all"],
+    ["c", "Commit (type message, Return)"],
+    ["P / p", "Push / pull"],
+    ["Return", "Open file diff / commit"],
+    ["?", "All keys"],
+    ["q", "Quit"],
+  ]},
+  { title: "Shell", accent: "var(--teal)", rows: [
+    ["cd part", "Jump to a frequent folder (zoxide)"],
+    ["Ctrl-r", "Search command history (atuin)"],
+    ["Ctrl-t", "Insert a file path (fzf)"],
+    ["Alt+c", "cd into a folder (fzf)"],
+    ["ll", "List files with git status"],
+    ["Hyper+Return", "New terminal window"],
+  ]},
+];
+
+const $ = (s) => document.querySelector(s);
+const sheet = $("#sheet"), q = $("#q");
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Shell commands render as green text; keys as <kbd> caps, one per press
+// ("Ctrl-g p" → two caps); connective words stay plain.
+const SHELL = /^(proj|zj|keys|ll|cd )/;
+const PLAIN = new Set(["type", "or", "Visual", "/", "·"]);
+function keyHtml(k) {
+  if (SHELL.test(k)) return `<span style="color:var(--green)">${esc(k)}</span>`;
+  return k.split(" ").map((t) => (PLAIN.has(t) ? `<span style="color:var(--comment)">${esc(t)}</span>` : `<kbd>${esc(t)}</kbd>`)).join(" ");
+}
+function hl(text, query) {
+  if (!query) return esc(text);
+  const i = text.toLowerCase().indexOf(query);
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + query.length)) + "</mark>" + esc(text.slice(i + query.length));
+}
+
+function draw() {
+  const query = q.value.trim().toLowerCase();
+  let html = "", shown = 0;
+  for (const card of SHEET) {
+    const cardHit = query && (card.title + " " + (card.sub || "")).toLowerCase().includes(query);
+    let rows = "", pendingSub = null, n = 0;
+    for (const r of card.rows) {
+      if (typeof r === "string") { pendingSub = r; continue; }
+      const [k, d, flag] = r;
+      if (query && !cardHit && !(k + " " + d).toLowerCase().includes(query)) continue;
+      if (pendingSub) { rows += `<div class="sub">${esc(pendingSub)}</div>`; pendingSub = null; }
+      rows += `<div class="row${flag === "warn" ? " warn" : ""}"><span class="k">${keyHtml(k)}</span><span class="d">${hl(d, query)}</span></div>`;
+      n++;
+    }
+    if (!n) continue;
+    shown += n;
+    html += `<div class="card" style="--accent:${card.accent}"><h2>${esc(card.title)}${card.sub ? `<span>${esc(card.sub)}</span>` : ""}</h2>${rows}${card.note && !query ? `<div class="note">${esc(card.note)}</div>` : ""}</div>`;
+  }
+  sheet.innerHTML = shown ? html : `<div id="empty">nothing matches “${esc(q.value.trim())}”</div>`;
+}
+
+const post = (msg) => window.webkit && window.webkit.messageHandlers.keys.postMessage(msg);
+window.openKeys = () => { q.value = ""; document.body.classList.add("open"); draw(); sheet.scrollTop = 0; q.focus(); };
+window.closeKeys = () => document.body.classList.remove("open");
+
+q.addEventListener("input", draw);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { if (q.value) { q.value = ""; draw(); } else post({ action: "close" }); e.preventDefault(); }
+  else if (e.key === "ArrowDown") { sheet.scrollBy({ top: 120 }); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { sheet.scrollBy({ top: -120 }); e.preventDefault(); }
+});
+$("#backdrop").addEventListener("mousedown", (e) => { if (e.target.id === "backdrop") post({ action: "close" }); });
+draw();
+</script>
+</body>
+</html>

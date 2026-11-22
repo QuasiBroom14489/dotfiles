@@ -35,7 +35,7 @@ nothing about the other.
 ### Who owns what
 
 - **macOS** — `Hyper+1..9` desktop switching (symbolic hotkeys from `desktop.sh`).
-- **Hammerspoon** — everything else: `Hyper+←/→/↑/↓` snapping, `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+J` (project launcher, `launcher.lua`), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload; `vesper.lua` owns `Hyper+A/Space/Escape`, `⌘⌥J` and Tab+V.
+- **Hammerspoon** — everything else: `Hyper+←/→/↑/↓` snapping, `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+J` (project launcher, `launcher.lua`), `Hyper+/` (controls sheet, `keys.lua`), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload; `vesper.lua` owns `Hyper+A/Space/Escape`, `⌘⌥J` and Tab+V.
 
 Never bind a `Hyper+digit` in Hammerspoon — it would race the macOS shortcut.
 
@@ -72,6 +72,15 @@ Vesper "follow the workspace" watcher was removed for exactly that reason.
 **Never add a startup `command` to the Ghostty config.** It used to run `zellij attach --create main`, which attached *every* window to one session. Zellij mirrors a session across all attached clients, so each new terminal was a duplicate view of the last, and windows piled up until tiling collapsed. Ghostty opens a plain login shell; Zellij is opt-in via the `zj` function in `.zshrc`.
 
 **Zellij provides persistence only, not layout.** Windows are arranged by snapping; don't make Zellij the layout tool.
+
+**Zellij keys are the official "unlock-first" preset** (rendered into
+`config.kdl` from zellij v0.45.1 `presets.rs`): it starts locked so every
+Ctrl key reaches Neovim; Zellij commands are `Ctrl-g` + a letter; Alt
+shortcuts work while locked. Don't go back to the default preset — it
+swallowed Neovim's Ctrl-s/h/j/k/l/n/p/o. Alt only arrives because Ghostty has
+`macos-option-as-alt = left`. **Any key change updates
+`hammerspoon/.hammerspoon/keys/keys.html`** — the Hyper+/ sheet is the
+user's day-to-day reference (its `SHEET` array is the single source).
 
 ---
 

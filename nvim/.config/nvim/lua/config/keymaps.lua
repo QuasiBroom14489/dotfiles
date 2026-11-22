@@ -14,3 +14,8 @@ map("n", "N", "Nzzzv", { desc = "Previous match (centred)" })
 map("n", "J", "mzJ`z", { desc = "Join lines, keep cursor" })
 map("x", "<leader>p", [["_dP]], { desc = "Paste over, keep register" })
 map("n", "<C-a>", "ggVG", { desc = "Select all" })
+
+-- Move the selected lines (old config). LazyVim's own <A-j>/<A-k> never
+-- arrive: Zellij uses Alt+j/k to move between panes.
+map("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selection down", silent = true })
+map("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selection up", silent = true })

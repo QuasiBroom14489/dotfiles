@@ -322,7 +322,7 @@ cmd_attach() {
   resolve $name || exit 1
   local slug=${P_SLUG[REPLY]} dir=${P_PATH[REPLY]} kind=${P_KIND[REPLY]}
   if [[ -n ${ZELLIJ:-} ]] && (( ! dry )); then
-    die "already inside Zellij session '${ZELLIJ_SESSION_NAME:-?}' — detach (Ctrl-o d) first"
+    die "already inside Zellij session '${ZELLIJ_SESSION_NAME:-?}' — detach (Ctrl-g o d) first"
   fi
   load_sessions
   local state=${ZJ_STATE[$slug]-none}
