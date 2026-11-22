@@ -74,6 +74,18 @@ bind("return", function()
   end
 end)
 
+-- Hyper+J → project launcher: every project as a card, Enter resumes it in
+-- its own Ghostty window (or focuses the window it is already open in).
+-- View lives in launcher.lua + launcher/launcher.html; all project logic is
+-- ~/.local/bin/proj. Loaded under pcall so a launcher bug can't take the
+-- rest of this file down with it.
+local okLauncher, launcher = pcall(require, "launcher")
+if okLauncher then
+  bind("j", launcher.toggle)
+else
+  hs.printf("launcher.lua failed to load: %s", tostring(launcher))
+end
+
 -- Hyper+Shift+R → reload Hammerspoon.
 bindShift("r", function() hs.reload() end)
 
@@ -225,6 +237,11 @@ bindMode("p", modePresenting)
 bindMode("f", modeFocus)
 bindMode("d", modeDemo)
 bindMode("n", modeNormal)
+
+-- An armed Hyper+V menu keeps p/f/d/n/esc as global hotkeys until it exits,
+-- so typing "flex" into the Hyper+J launcher would run Focus mode (and kill
+-- Slack). Opening the launcher disarms the menu first.
+if okLauncher then launcher.beforeShow = function() modeMenu:exit() end end
 
 -- Direct one-chord equivalents on the Shift layer. These are the bindings
 -- the modes always wanted: Hyper+F (Focus) and Hyper+P (Present) used to

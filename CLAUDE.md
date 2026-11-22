@@ -28,14 +28,14 @@ grep -nE 'bind(Shift)?\(|hotkey\.bind' ~/dotfiles/hammerspoon/.hammerspoon/init.
 Plus `Hyper+1..9`, which are macOS's own "Switch to Desktop N" symbolic hotkeys
 (118–126), written by `scripts/desktop.sh` — they do not appear in any Lua file.
 
-Free on both layers: `B E H I J K L M Q T U X Y Z`. `R` is free on the Hyper
+Free on both layers: `B E H I K L M Q T U X Y Z` (`J` is the project launcher). `R` is free on the Hyper
 layer only (it was AeroSpace's reload). A chord being free on one layer says
 nothing about the other.
 
 ### Who owns what
 
 - **macOS** — `Hyper+1..9` desktop switching (symbolic hotkeys from `desktop.sh`).
-- **Hammerspoon** — everything else: `Hyper+←/→/↑/↓` snapping, `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload; `vesper.lua` owns `Hyper+A/Space/Escape`, `⌘⌥J` and Tab+V.
+- **Hammerspoon** — everything else: `Hyper+←/→/↑/↓` snapping, `Hyper+O/C/P` (Obsidian), `Hyper+Return` (new terminal), `Hyper+J` (project launcher, `launcher.lua`), `Hyper+Shift+S/A/W/G` (Shottr), the desktop modes, its own reload; `vesper.lua` owns `Hyper+A/Space/Escape`, `⌘⌥J` and Tab+V.
 
 Never bind a `Hyper+digit` in Hammerspoon — it would race the macOS shortcut.
 
@@ -105,6 +105,29 @@ Contract front ends rely on — keep it stable:
 - `dataStructures` (EXITED) and `datastructures` (live) share one cache
   directory on case-insensitive APFS. Don't `delete-session` the former — it
   deletes the live session's save. proj folds case and the live one wins.
+
+### The Hyper+J launcher — `launcher.lua` + `launcher/launcher.html`
+
+One `hs.webview`, built at load and only shown/hidden (show ≈ 8 ms). Lessons
+that cost time, measured on this machine:
+
+- **`wv:hswindow()` takes 2.2 s** and **`hs.window.filter:getWindows()` 4.6 s**
+  (it waits for apps to "register"), both blocking the main thread — banned.
+  `hs.focus()` alone makes the borderless webview key; `hs.application.get(
+  "com.mitchellh.ghostty"):allWindows()` (3 ms) covers the current Space and
+  Ghostty's AppleScript (`windows` / `name` / `activate window`) covers the rest.
+- **Windows open via Ghostty AppleScript** (`new window with configuration`,
+  `initial working directory`, `command`), through `hs.task` + osascript so a
+  pending Automation prompt can't block Hammerspoon. No keystroke fallback: a
+  typed fallback once waited unbounded and would have typed `proj attach`
+  into whichever Ghostty window got focus next. On -1743/-1712 it explains.
+- Before opening, `proj attach X --dry-run` is asked (not the cached status):
+  exit 3 → bring the existing window forward; never `--force` on its own.
+- `hs.task` objects are kept in a table until they exit — an unreferenced task
+  can be garbage-collected and killed mid-run.
+- `launcher.beforeShow` disarms the Hyper+V modal, whose p/f/d/n/esc hotkeys
+  would otherwise eat the letters typed into the search box.
+- Tab is not a launcher key: vesper.lua's Tab+V chord owns Tab.
 
 ---
 

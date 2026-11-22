@@ -1,0 +1,381 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Projects</title>
+<!--
+  Hyper+J launcher page. Loaded once by launcher.lua into a hidden hs.webview.
+  Lua → page:  render(list[, error]), openLauncher(), closeLauncher()
+  Page → Lua:  webkit.messageHandlers.launcher.postMessage({action, ...})
+  Palette: ~/dotfiles/colors/tokyonight.sh (same values as the widgets).
+-->
+<style>
+  :root {
+    --bg: #1a1b26; --bg-dark: #16161e; --hl: #292e42; --gutter: #3b4261;
+    --comment: #565f89; --fg: #c0caf5; --fg-dark: #a9b1d6;
+    --blue: #7aa2f7; --cyan: #7dcfff; --green: #9ece6a; --magenta: #bb9af7;
+    --red: #f7768e; --yellow: #e0af68; --orange: #ff9e64;
+    --font: "JetBrainsMono Nerd Font", "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  body { font-family: var(--font); color: var(--fg); font-size: 13px; -webkit-user-select: none; cursor: default; }
+
+  #backdrop {
+    position: fixed; inset: 0; background: rgba(13, 14, 20, 0.86);
+    display: flex; justify-content: center; align-items: flex-start;
+    opacity: 0; transition: opacity 120ms ease-out;
+  }
+  body.open #backdrop { opacity: 1; }
+
+  #panel {
+    margin-top: 9vh; width: min(1080px, 86vw); max-height: 78vh;
+    display: flex; flex-direction: column;
+    background: var(--bg); border: 1px solid var(--gutter); border-radius: 12px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    transform: translateY(8px) scale(0.99); transition: transform 140ms cubic-bezier(.2,.7,.3,1);
+  }
+  body.open #panel { transform: none; }
+
+  #bar { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--hl); }
+  #prompt { color: var(--magenta); font-weight: 700; }
+  #q {
+    flex: 1; background: transparent; border: 0; outline: 0; color: var(--fg);
+    font: inherit; font-size: 16px; caret-color: var(--magenta);
+  }
+  #q::placeholder { color: var(--comment); }
+  #count { color: var(--comment); font-size: 12px; white-space: nowrap; }
+
+  #list { overflow-y: auto; padding: 6px 14px 14px; }
+  #list::-webkit-scrollbar { width: 0; }
+  .section {
+    color: var(--comment); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+    margin: 12px 4px 6px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+  .card {
+    border: 1px solid var(--gutter); border-radius: 8px; padding: 9px 11px 8px;
+    background: var(--bg); min-height: 82px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .card.sel { border-color: var(--blue); background: var(--hl); }
+  .card.wt { border-style: dashed; }
+  .top { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  .dot { flex: none; width: 1ch; }
+  .dot.live { color: var(--green); } .dot.exited { color: var(--yellow); } .dot.none { color: var(--gutter); }
+  .name { color: var(--fg); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card.sel .name { color: var(--blue); }
+  .name b { color: var(--magenta); font-weight: 700; }
+  .when { margin-left: auto; color: var(--comment); font-size: 11px; flex: none; }
+  .meta { color: var(--comment); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .dirty { color: var(--yellow); }
+  .meta .course { color: var(--cyan); }
+  .meta .open { color: var(--green); }
+  .note { color: var(--fg-dark); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .note.empty { color: var(--gutter); font-style: italic; }
+  .note input {
+    width: 100%; background: var(--bg-dark); color: var(--fg); border: 1px solid var(--magenta);
+    border-radius: 4px; font: inherit; font-size: 12px; padding: 2px 5px; outline: 0;
+  }
+  .confirm { color: var(--red); }
+
+  #keys {
+    display: flex; gap: 16px; flex-wrap: wrap; padding: 9px 18px 11px; border-top: 1px solid var(--hl);
+    color: var(--comment); font-size: 11px;
+  }
+  kbd {
+    font: inherit; color: var(--fg-dark); border: 1px solid var(--gutter); border-radius: 4px;
+    padding: 0 4px; margin-right: 3px;
+  }
+  #msg { padding: 28px; color: var(--comment); text-align: center; }
+  #msg.err { color: var(--red); }
+</style>
+</head>
+<body>
+<div id="backdrop">
+  <div id="panel">
+    <div id="bar">
+      <span id="prompt">❯</span>
+      <input id="q" placeholder="find a project" autocomplete="off" spellcheck="false">
+      <span id="count"></span>
+    </div>
+    <div id="list"><div id="msg">loading…</div></div>
+    <div id="keys">
+      <span><kbd>↵</kbd>resume</span>
+      <span><kbd>⇧↵</kbd>shell in folder</span>
+      <span><kbd>^E</kbd>note</span>
+      <span><kbd>^X</kbd>end session</span>
+      <span><kbd>^N</kbd>new project</span>
+      <span><kbd>esc</kbd>close</span>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const q = $("#q"), list = $("#list"), count = $("#count");
+const DAY = 86400;
+
+let projects = [];     // from `proj status --json`
+let shown = [];        // flattened items in display order: {p, m}
+let selSlug = null;    // selection follows the project, not the index
+let mode = "search";   // search | note | new | confirm-end
+let confirmSlug = null, endTimer = null, noteSlug = null;
+let busy = false;      // an open/shell/new was posted; ignore repeats until reopened
+let error = null;
+
+const post = (msg) => window.webkit && window.webkit.messageHandlers.launcher.postMessage(msg);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const selIndex = () => Math.max(0, shown.findIndex((it) => it.p.slug === selSlug));
+const current = () => (shown.length ? shown[selIndex()].p : null);
+const select = (i) => { if (shown[i]) selSlug = shown[i].p.slug; };
+
+function ago(epoch) {
+  if (!epoch) return "";
+  const s = Math.max(0, Date.now() / 1000 - epoch);
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + "m";
+  if (s < DAY) return Math.round(s / 3600) + "h";
+  if (s < 14 * DAY) return Math.round(s / DAY) + "d";
+  if (s < 60 * DAY) return Math.round(s / (7 * DAY)) + "w";
+  return Math.round(s / (30 * DAY)) + "mo";
+}
+
+// Best-alignment subsequence match. Each matched char scores 1, +8 at a word
+// start (index 0 or after "-"), +4 when it directly follows the previous
+// match; gaps cost a little. Exhaustive over alignments (slugs are short),
+// so "vr" prefers vesper-Revamp's word start over vespeR's interior r.
+function fuzzy(query, text) {
+  if (!query) return { score: 0, hits: [] };
+  const t = text.toLowerCase(), qq = query.toLowerCase();
+  const memo = new Map();
+  function best(qi, last) {
+    if (qi === qq.length) return { s: 0, path: [] };
+    const key = qi * 64 + (last + 1);
+    if (memo.has(key)) return memo.get(key);
+    let out = null;
+    for (let pos = last + 1; pos < t.length; pos++) {
+      if (t[pos] !== qq[qi]) continue;
+      const rest = best(qi + 1, pos);
+      if (!rest) continue;
+      const boundary = pos === 0 || t[pos - 1] === "-";
+      const gap = qi === 0 ? pos * 0.2 : Math.min(pos - last - 1, 6) * 0.3;
+      const s = 1 + (boundary ? 8 : 0) + (qi > 0 && pos === last + 1 ? 4 : 0) - gap + rest.s;
+      if (!out || s > out.s) out = { s, path: [pos, ...rest.path] };
+    }
+    memo.set(key, out);
+    return out;
+  }
+  const r = best(0, -1);
+  return r ? { score: r.s - t.length * 0.05, hits: r.path } : null;
+}
+
+function highlight(name, hits) {
+  if (!hits.length) return esc(name);
+  const set = new Set(hits);
+  return [...name].map((c, i) => set.has(i) ? "<b>" + esc(c) + "</b>" : esc(c)).join("");
+}
+
+function sections() {
+  const raw = q.value.trim();
+  if (mode !== "new" && raw) {
+    const slugQuery = raw.replace(/\s+/g, "");
+    const scored = [];
+    for (const p of projects) {
+      const m = fuzzy(slugQuery, p.slug)
+        || (p.note && p.note.toLowerCase().includes(raw.toLowerCase()) ? { score: -50, hits: [] } : null);
+      if (m) scored.push({ p, m });
+    }
+    scored.sort((a, b) => b.m.score - a.m.score || b.p.last - a.p.last);
+    return [{ title: null, items: scored }];
+  }
+  const now = Date.now() / 1000, open = [], recent = [], rest = [];
+  for (const p of projects) {
+    const item = { p, m: { hits: [] } };
+    if (p.state === "live") open.push(item);
+    else if (now - p.last < 10 * DAY) recent.push(item);
+    else rest.push(item);
+  }
+  return [
+    { title: "open now", items: open },
+    { title: "recent", items: recent },
+    { title: "everything else", items: rest },
+  ].filter((s) => s.items.length);
+}
+
+function card(item, i, sel) {
+  const p = item.p;
+  const dot = { live: "●", exited: "◐", none: "○" }[p.state] || "○";
+  const bits = [];
+  if (p.kind === "course") bits.push('<span class="course">course</span>');
+  bits.push(esc(p.type));
+  if (p.parent) bits.push("↳ " + esc(p.parent));
+  if (p.branch && p.branch !== "main" && p.branch !== "master") bits.push(esc(p.branch));
+  if (p.dirty) bits.push(`<span class="dirty">+${esc(p.dirty)}</span>`);
+  if (p.clients) bits.push('<span class="open">open</span>');
+
+  let note;
+  if (mode === "note" && p.slug === noteSlug) note = `<div class="note"><input id="noteInput" value="${esc(p.note)}" placeholder="where you left off"></div>`;
+  else if (mode === "confirm-end" && p.slug === confirmSlug) note = `<div class="note confirm">^X again to stop the session · esc to cancel</div>`;
+  else if (p.note) note = `<div class="note">${esc(p.note)}</div>`;
+  else note = `<div class="note empty"></div>`;
+
+  return `<div class="card${i === sel ? " sel" : ""}${p.parent ? " wt" : ""}" data-i="${i}">
+    <div class="top"><span class="dot ${esc(p.state)}">${dot}</span><span class="name">${highlight(p.slug, item.m.hits)}</span><span class="when">${ago(p.last)}</span></div>
+    <div class="meta">${bits.join(" · ")}</div>
+    ${note}
+  </div>`;
+}
+
+function draw() {
+  if (error) { shown = []; list.innerHTML = `<div id="msg" class="err">${esc(error)}</div>`; count.textContent = ""; return; }
+  if (mode === "new") {
+    shown = [];
+    list.innerHTML = `<div id="msg">new project in ~/<b style="color:var(--fg)">${esc(q.value.trim() || "…")}</b> &nbsp;·&nbsp; ↵ create &nbsp;·&nbsp; ⇧↵ create as course &nbsp;·&nbsp; esc cancel</div>`;
+    count.textContent = "";
+    return;
+  }
+  const secs = sections();
+  shown = secs.flatMap((s) => s.items);
+  if (!shown.some((it) => it.p.slug === selSlug)) selSlug = shown.length ? shown[0].p.slug : null;
+  const sel = selIndex();
+  let i = 0, html = "";
+  for (const s of secs) {
+    if (s.title) html += `<div class="section">${s.title} · ${s.items.length}</div>`;
+    html += '<div class="grid">' + s.items.map((it) => card(it, i++, sel)).join("") + "</div>";
+  }
+  list.innerHTML = shown.length ? html : `<div id="msg">no match · ^N to create “${esc(q.value.trim())}”</div>`;
+  const live = projects.filter((p) => p.state === "live").length;
+  count.textContent = `${shown.length}/${projects.length} · ${live} open`;
+  const el = list.querySelector(".card.sel");
+  if (el) el.scrollIntoView({ block: "nearest" });
+  const ni = $("#noteInput");
+  if (ni && document.activeElement !== ni) { ni.focus(); ni.select(); }
+}
+
+// Arrow keys over separate section grids: go to the nearest row in that
+// direction first, then the closest column within it.
+function move(dir) {
+  const cards = [...list.querySelectorAll(".card")];
+  const sel = selIndex();
+  if (!cards[sel]) return;
+  if (dir === "left") select(Math.max(0, sel - 1));
+  else if (dir === "right") select(Math.min(cards.length - 1, sel + 1));
+  else {
+    const here = cards[sel].getBoundingClientRect(), down = dir === "down";
+    const rows = cards.map((c, k) => ({ k, r: c.getBoundingClientRect() }))
+      .filter(({ r }) => down ? r.top > here.top + 2 : r.top < here.top - 2);
+    if (!rows.length) return;
+    const rowTop = down ? Math.min(...rows.map((x) => x.r.top)) : Math.max(...rows.map((x) => x.r.top));
+    const row = rows.filter((x) => Math.abs(x.r.top - rowTop) <= 2);
+    row.sort((a, b) => Math.abs(a.r.left - here.left) - Math.abs(b.r.left - here.left));
+    select(row[0].k);
+  }
+  draw();
+}
+
+function cancelConfirm() { mode = "search"; confirmSlug = null; clearTimeout(endTimer); }
+
+window.render = (data, err) => {
+  error = err || null;
+  projects = Array.isArray(data) ? data : [];
+  if (mode === "note") return;              // keep the edit; draw() runs on Enter/Esc
+  if (mode === "confirm-end" && !projects.some((p) => p.slug === confirmSlug && p.state === "live")) cancelConfirm();
+  draw();
+};
+
+window.openLauncher = () => {
+  cancelConfirm(); mode = "search"; busy = false; noteSlug = null;
+  q.value = ""; q.placeholder = "find a project"; selSlug = null;
+  document.body.classList.add("open");
+  draw();
+  q.focus();
+};
+window.closeLauncher = () => {
+  document.body.classList.remove("open");
+  cancelConfirm(); mode = "search"; noteSlug = null; q.placeholder = "find a project";
+};
+
+const MODIFIERS = new Set(["Control", "Shift", "Alt", "Meta", "CapsLock"]);
+
+document.addEventListener("keydown", (e) => {
+  if (MODIFIERS.has(e.key)) return;          // a bare Ctrl press is not a key
+  const cur = current();
+
+  if (mode === "note") {
+    const ni = $("#noteInput");
+    if (e.key === "Enter" && ni) {
+      const text = ni.value;
+      post({ action: "note", slug: noteSlug, text });
+      const target = projects.find((p) => p.slug === noteSlug);
+      if (target) target.note = text.trim();
+      mode = "search"; noteSlug = null; draw(); q.focus(); e.preventDefault();
+    } else if (e.key === "Escape") { mode = "search"; noteSlug = null; draw(); q.focus(); e.preventDefault(); }
+    return;
+  }
+  if (mode === "new") {
+    if (e.key === "Enter") {
+      const name = q.value.trim();
+      if (name && !busy) { busy = true; post({ action: "new", name, course: e.shiftKey }); }
+      e.preventDefault();
+    } else if (e.key === "Escape") { mode = "search"; q.value = ""; q.placeholder = "find a project"; draw(); e.preventDefault(); }
+    else setTimeout(draw, 0);
+    return;
+  }
+
+  const isCtrlX = e.ctrlKey && e.key.toLowerCase() === "x";
+  if (mode === "confirm-end" && !isCtrlX) {
+    cancelConfirm(); draw();
+    if (e.key === "Escape") { e.preventDefault(); return; }
+  }
+
+  if (e.key === "Escape") { if (q.value) { q.value = ""; draw(); } else post({ action: "close" }); e.preventDefault(); return; }
+  if (e.key === "Enter") {
+    if (cur && !busy && !e.repeat) { busy = true; post({ action: e.shiftKey ? "shell" : "open", slug: cur.slug }); }
+    e.preventDefault(); return;
+  }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { move(e.key === "ArrowDown" ? "down" : "up"); e.preventDefault(); return; }
+  if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && (e.altKey || !q.value)) { move(e.key === "ArrowRight" ? "right" : "left"); e.preventDefault(); return; }
+  if (e.ctrlKey) {
+    const k = e.key.toLowerCase();
+    if (k === "e" && cur) { mode = "note"; noteSlug = cur.slug; draw(); e.preventDefault(); return; }
+    if (k === "n") { mode = "new"; q.placeholder = "new project name"; draw(); e.preventDefault(); return; }
+    if (k === "x") {
+      e.preventDefault();
+      if (e.repeat || !cur || cur.state !== "live") return;   // holding ^X must not confirm itself
+      if (mode === "confirm-end" && confirmSlug === cur.slug) {
+        post({ action: "finish", slug: cur.slug }); cancelConfirm(); draw();
+      } else {
+        cancelConfirm(); mode = "confirm-end"; confirmSlug = cur.slug; draw();
+        endTimer = setTimeout(() => { if (mode === "confirm-end") { cancelConfirm(); draw(); } }, 3000);
+      }
+      return;
+    }
+    if (k === "r") { post({ action: "refresh" }); e.preventDefault(); return; }
+  }
+});
+
+q.addEventListener("input", () => { if (mode === "search") { selSlug = null; draw(); } });
+
+// Single click selects; double-click (or Enter) opens. Clicks inside the
+// note field are the field's own.
+list.addEventListener("mousedown", (e) => { if (e.target.id !== "noteInput") e.preventDefault(); });
+list.addEventListener("click", (e) => {
+  if (e.target.id === "noteInput") return;
+  const c = e.target.closest(".card");
+  if (!c) return;
+  if (mode === "note") { mode = "search"; noteSlug = null; }
+  if (mode === "confirm-end") cancelConfirm();
+  select(+c.dataset.i);
+  draw();
+  q.focus();
+});
+list.addEventListener("dblclick", (e) => {
+  const c = e.target.closest(".card");
+  if (!c || e.target.id === "noteInput" || busy) return;
+  const it = shown[+c.dataset.i];
+  if (it) { busy = true; post({ action: "open", slug: it.p.slug }); }
+});
+$("#backdrop").addEventListener("mousedown", (e) => { if (e.target.id === "backdrop") post({ action: "close" }); });
+</script>
+</body>
+</html>
