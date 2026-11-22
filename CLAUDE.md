@@ -187,6 +187,7 @@ Ten Übersicht widgets draw on the wallpaper, in three columns:
 | Column | Widgets |
 |---|---|
 | Left | `class-strip` (today's courses), `day-tape` (day progress), `focus` (open Current Sprint items) |
+| Left gutter | `projects` (the shelf: open + recent projects; click resumes) — `left: 348px; top: 426px`, hidden below 1700 px |
 | Centre | `clock`, `weather`, `system`, `now-playing` |
 | Right | `agenda` (today's calendar), `golden-dome` (decorative), `assignments` (what's due) |
 
@@ -229,6 +230,14 @@ helper scripts. Browserify still bundles those imports normally.
 `./lib/current-sprint.sh` resolves. That shell does not inherit Homebrew's PATH
 reliably, which is why `agenda.jsx` prefixes `PATH=/opt/homebrew/bin:...` before
 calling `icalBuddy`.
+
+**`projects.jsx` is the project shelf.** Data is `lib/projects.sh` →
+`proj status --tsv` (60 s refresh, read-only git, stderr silenced). A click
+runs `open -g 'hammerspoon://project?name=SLUG'`, handled in launcher.lua by
+the same `openProject` as Enter in Hyper+J (focus the open window, else a new
+Ghostty window). It is the only widget with click handlers; Übersicht 1.6's
+"Enable interaction" pref must stay on. Preview the whole desktop without
+hiding windows by loading http://127.0.0.1:41416/ in a browser at 1920×1080.
 
 **`scripts/desktop.sh` owns every `defaults` key** for the dock, desktop icons
 and window animations, in one table so apply and `--restore` cannot drift. Don't

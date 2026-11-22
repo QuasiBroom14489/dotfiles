@@ -35,6 +35,7 @@ local loaded, visible = false, false
 local pendingJS = {}
 local cache                   -- last `proj status --json` output (JSON string)
 local statusTask, wantRefresh -- in-flight refresh; another one requested?
+local afterRefresh = {}       -- callbacks waiting for the next refresh
 local prevApp                 -- app to hand focus back to when dismissed
 local live = {}               -- running hs.task objects, kept from the GC
 
@@ -73,6 +74,8 @@ local function refresh()
     else
       js("render([], " .. hs.json.encode({ "proj status failed (exit " .. tostring(code) .. ")" }):sub(2, -2) .. ")")
     end
+    local waiting = afterRefresh; afterRefresh = {}
+    for _, f in ipairs(waiting) do pcall(f) end
     if wantRefresh then wantRefresh = false; refresh() end
   end)
 end
@@ -183,10 +186,7 @@ local actions = {}
 
 -- Ask proj (not the cache, which can be seconds old) whether the session is
 -- already attached: exit 3 → bring that window forward; 0 → new window.
-function actions.open(m)
-  local p = safeSlug(m.slug) and project(m.slug)
-  if not p then return end
-  M.hide(true)
+local function openProject(p)
   spawn(PROJ, { "attach", p.slug, "--dry-run" }, function(code, _, err)
     if code == 3 then
       focusSessionWindow(p.slug, function(found)
@@ -204,6 +204,29 @@ function actions.open(m)
     refresh()
   end)
 end
+
+function actions.open(m)
+  local p = safeSlug(m.slug) and project(m.slug)
+  if not p then return end
+  M.hide(true)
+  openProject(p)
+end
+
+-- hammerspoon://project?name=SLUG — the wallpaper shelf (Übersicht
+-- projects.jsx) resumes a project through exactly the same path as Enter.
+hs.urlevent.bind("project", function(_, params)
+  local slug = params and params.name
+  if not safeSlug(slug) then return end
+  local front = hs.application.frontmostApplication()
+  if front and front:bundleID() ~= SELF_ID then prevApp = front end
+  local p = project(slug)
+  if p then openProject(p); return end
+  table.insert(afterRefresh, function()          -- not in the cache yet
+    local q = project(slug)
+    if q then openProject(q) else say("No project called " .. slug) end
+  end)
+  refresh()
+end)
 
 function actions.shell(m)
   local p = safeSlug(m.slug) and project(m.slug)
