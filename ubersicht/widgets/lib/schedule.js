@@ -1,18 +1,19 @@
 // Fall 2026 course schedule — Notre Dame.
 //
-// Only START times are recorded, because that is all the registrar line
-// gives ("MWF 10am"). Don't invent end times; the widget shows starts.
+// Only START times are recorded — the widgets show starts, not durations.
+// These are the registrar's exact times (verified 2026-09-01), not the
+// rounded hours an earlier version of this file carried.
 //
 // days: JS weekday numbers, 0 = Sunday. "TR" is Tue+Thu, "Th" is Thu only.
 
 export const COURSES = [
-  { code: "CSE 20321", name: "Computer Organization",  days: [2, 4],    start: "09:00", accent: "cyan"    },
-  { code: "CSE 20312", name: "Data Structures",        days: [1, 3, 5], start: "10:00", accent: "blue"    },
-  { code: "MATH 20550", name: "Calculus III",          days: [1, 3, 5], start: "11:00", accent: "green"   },
+  { code: "CSE 20321", name: "Computer Organization",  days: [2, 4],    start: "09:30", accent: "cyan"    },
+  { code: "CSE 20312", name: "Data Structures",        days: [1, 3, 5], start: "10:30", accent: "blue"    },
+  { code: "MATH 20550", name: "Calculus III",          days: [1, 3, 5], start: "11:30", accent: "green"   },
   { code: "CSE 20110", name: "Discrete Mathematics",   days: [2, 4],    start: "12:30", accent: "magenta" },
   { code: "CDT 30750", name: "Generative AI in the Wild", days: [2, 4], start: "14:00", accent: "orange"  },
-  { code: "CSE 21312", name: "Data Structures Lab",    days: [2],       start: "15:00", accent: "blue"    },
-  { code: "MATH 22550", name: "Calculus III Tutorial", days: [4],       start: "15:00", accent: "green"   },
+  { code: "CSE 21312", name: "Data Structures Lab",    days: [2],       start: "15:30", accent: "blue"    },
+  { code: "MATH 22550", name: "Calculus III Tutorial", days: [4],       start: "15:30", accent: "green"   },
 ];
 
 // Fall 2026 first day of class. Also the epoch Hammerspoon's Hyper+C uses
