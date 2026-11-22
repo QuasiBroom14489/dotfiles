@@ -78,7 +78,11 @@ Vesper "follow the workspace" watcher was removed for exactly that reason.
 Ctrl key reaches Neovim; Zellij commands are `Ctrl-g` + a letter; Alt
 shortcuts work while locked. Don't go back to the default preset — it
 swallowed Neovim's Ctrl-s/h/j/k/l/n/p/o. Alt only arrives because Ghostty has
-`macos-option-as-alt = left`. **Any key change updates
+`macos-option-as-alt = left`. **Keybind edits only reach NEW sessions** —
+Zellij 0.45.1 did not live-reload them into running servers (edit made via
+the dotfiles path behind the ~/.config symlink; touching the symlinked path
+didn't trigger it either). Running sessions keep old keys until restarted
+(`proj end X`, then resume — resurrection loads the current config). **Any key change updates
 `hammerspoon/.hammerspoon/keys/keys.html`** — the Hyper+/ sheet is the
 user's day-to-day reference (its `SHEET` array is the single source).
 
