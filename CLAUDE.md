@@ -130,6 +130,10 @@ config is preserved as `NVIM_APPNAME=nvim-old` (`~/.config/nvim-old`,
   BufWritePost/FocusLost (a reboot skips VimLeavePre), and calls
   `persistence.stop()` in any other nvim inside Zellij so an ad-hoc
   `nvim file` can't overwrite the project session. Layouts start bare `nvim`.
+  The restore is `vim.schedule`d out of VimEnter: inline, did_filetype() was
+  already true so `:setf` no-op'd and restored files had no filetype/LSP.
+  The `edit` pane *is* nvim (`command="nvim"`): `:qa` closes the tab. To
+  reload config tell the user `:restart`, never quit-and-relaunch.
 - Headless installs: `:MasonInstall` does NOT block headless, and LazyVim
   starts some of the same installs itself ("Package is already installing").
   Drive `mason-registry` and wait on `is_installing()`; parsers via
