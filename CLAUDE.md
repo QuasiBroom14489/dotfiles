@@ -163,6 +163,9 @@ use it, so editor and terminal agree. Rules from review (2026-11-22):
   would bill the API key) and let a repo set NODE_OPTIONS/GIT_CONFIG_*/PATH.
 - PYTHONPATH entries are made absolute, the unittest `-s` dir (or ./tests) is
   prepended so sibling helpers import, and it prepends to the existing value.
+- Root markers are ONE nested list in `vim.fs.root` (equal priority) and
+  `~` is never a root: as a flat list `~/.vscode` beat a project's `.git`, so
+  git-only projects ran tests from home (fixed 2026-11-23).
 - `ut` exits 5 on "Ran 0 tests" — unittest discovery silently skips folders
   without `__init__.py`, which read as a false green.
 - debugpy: Mason's build fails on Homebrew python@3.14 (ensurepip), so

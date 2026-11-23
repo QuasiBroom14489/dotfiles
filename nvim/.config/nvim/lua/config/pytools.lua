@@ -66,10 +66,16 @@ local function expand_vscode(value, root)
 end
 
 -- Project root: nearest folder (from `dir` up) that looks like a Python project.
+-- The markers are ONE nested list so they share priority: the nearest folder
+-- holding any of them wins. As a flat list vim.fs.root searches marker by
+-- marker, so ~/.vscode beat a project's own .git and git-only projects got
+-- ROOT=~. Home itself is never a project root.
 M.MARKERS = { ".venv", "venv", ".env", ".vscode", "pyproject.toml", "setup.py", "setup.cfg", ".git" }
 function M.root(dir)
   dir = vim.fs.normalize(dir or vim.fn.getcwd())
-  return vim.fs.root(dir, M.MARKERS) or dir
+  local root = vim.fs.root(dir, { M.MARKERS })
+  if root and root == vim.fs.normalize(vim.env.HOME or "") then root = nil end
+  return root or dir
 end
 
 local uv_python
