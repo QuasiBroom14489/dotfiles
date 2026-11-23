@@ -170,6 +170,10 @@ use it, so editor and terminal agree. Rules from review (2026-11-22):
   without `__init__.py`, which read as a false green.
 - debugpy: Mason's build fails on Homebrew python@3.14 (ensurepip), so
   dap-python uses `~/.local/share/nvim/debugpy` (uv venv, made by bootstrap).
+  mason-nvim-dap's automatic_installation excludes `python`, or it re-offers
+  debugpy on every dap load.
+- `PYTHON_COLORS=0` is set inside Neovim: neotest runs tests under a pty and
+  Python 3.13+ colours tracebacks, so failures showed raw `^[[35m` codes.
 
 ### The Hyper+J launcher — `launcher.lua` + `launcher/launcher.html`
 

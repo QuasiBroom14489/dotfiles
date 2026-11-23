@@ -6,7 +6,21 @@ local pytools = require("config.pytools")
 -- Python, whose ensurepip is broken here (python@3.14). bootstrap.sh makes it.
 local debugpy = vim.fn.stdpath("data") .. "/debugpy/bin/python"
 
+-- Python 3.13+ colours tracebacks whenever it sees a terminal, and neotest
+-- runs tests under a pty, so failure messages and Trouble showed raw escape
+-- codes (^[[35m…). Programs Neovim starts get plain output; `ut` in a Zellij
+-- pane is not affected.
+if vim.env.PYTHON_COLORS == nil then vim.env.PYTHON_COLORS = "0" end
+
 return {
+  -- LazyVim's dap extra asks mason-nvim-dap to install a debugger for every
+  -- adapter. The python adapter comes from dap-python + the uv venv above,
+  -- so skip it (otherwise: "automatically installing debugpy" on every load).
+  {
+    "jay-babu/mason-nvim-dap.nvim",
+    optional = true,
+    opts = { automatic_installation = { exclude = { "python" } } },
+  },
   {
     "nvim-neotest/neotest",
     optional = true,
