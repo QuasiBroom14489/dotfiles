@@ -119,12 +119,15 @@ bindkey -e   # emacs-style; swap to `-v` for full vi mode if you want
 # ── Local overrides ──────────────────────────────────────────────────
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
-. "$HOME/.local/share/../bin/env"
+# uv's installer env (absent on a machine set up with brew's uv)
+[[ -f "$HOME/.local/bin/env" ]] && . "$HOME/.local/bin/env"
 
 # >>> grok installer >>>
+if [[ -d ~/.grok ]]; then
 export PATH="$HOME/.grok/bin:$PATH"
 fpath=(~/.grok/completions/zsh $fpath)
 autoload -Uz compinit && compinit -C
+fi
 # <<< grok installer <<<
 export DBT_PROFILES_DIR="$HOME/.dbt"
 

@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 # Bootstrap ~/dotfiles: symlink configs into place, then brew bundle.
 # Idempotent — re-run any time.
+#
+#   ./bootstrap.sh            the whole rice (bar, borders, Hammerspoon, widgets…)
+#   ./bootstrap.sh --minimal  dev core only: Ghostty, zsh, Neovim/LazyVim,
+#                             lazygit, Zellij — for a second machine (Brewfile.dev)
 
 set -euo pipefail
+
+MINIMAL=0
+case "${1:-}" in
+  --minimal) MINIMAL=1 ;;
+  "") ;;
+  *) echo "usage: $0 [--minimal]" >&2; exit 2 ;;
+esac
 
 DOTFILES="$HOME/dotfiles"
 CONFIG="$HOME/.config"
@@ -28,40 +39,53 @@ link() {
 }
 
 say "Linking configs…"
-link "$DOTFILES/borders/.config/borders"       "$CONFIG/borders"
+# Dev core — linked in both modes.
 link "$DOTFILES/ghostty/.config/ghostty"       "$CONFIG/ghostty"
 link "$DOTFILES/zellij/.config/zellij"         "$CONFIG/zellij"
 link "$DOTFILES/nvim/.config/nvim"             "$CONFIG/nvim"
 link "$DOTFILES/starship/.config/starship.toml" "$CONFIG/starship.toml"
-link "$DOTFILES/sketchybar/.config/sketchybar" "$CONFIG/sketchybar"
-link "$DOTFILES/karabiner/.config/karabiner"   "$CONFIG/karabiner"
-link "$DOTFILES/hammerspoon/.hammerspoon"      "$HOME/.hammerspoon"
 link "$DOTFILES/zsh/.zshrc"                    "$HOME/.zshrc"
 link "$DOTFILES/zsh/.zshenv"                   "$HOME/.zshenv"
 link "$DOTFILES/proj/.config/proj"             "$CONFIG/proj"
 link "$DOTFILES/bin/proj"                      "$HOME/.local/bin/proj"
 link "$DOTFILES/bin/ut"                        "$HOME/.local/bin/ut"
 
-# Übersicht keeps its widgets under Application Support rather than
-# ~/.config. Its server resolves a symlinked widget directory (it lstats the
-# path and follows it), so linking the whole folder works and file-watching
-# still fires on edits made in ~/dotfiles.
-link "$DOTFILES/ubersicht/widgets" "$HOME/Library/Application Support/Übersicht/widgets"
+if (( ! MINIMAL )); then
+  link "$DOTFILES/borders/.config/borders"       "$CONFIG/borders"
+  link "$DOTFILES/sketchybar/.config/sketchybar" "$CONFIG/sketchybar"
+  link "$DOTFILES/karabiner/.config/karabiner"   "$CONFIG/karabiner"
+  link "$DOTFILES/hammerspoon/.hammerspoon"      "$HOME/.hammerspoon"
+
+  # Übersicht keeps its widgets under Application Support rather than
+  # ~/.config. Its server resolves a symlinked widget directory (it lstats the
+  # path and follows it), so linking the whole folder works and file-watching
+  # still fires on edits made in ~/dotfiles.
+  link "$DOTFILES/ubersicht/widgets" "$HOME/Library/Application Support/Übersicht/widgets"
+fi
 
 # ── Homebrew ──
 if ! command -v brew >/dev/null; then
   say "Installing Homebrew…"
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-
-say "Trusting third-party taps (required since Homebrew 4.x)…"
-for tap in FelixKratz/formulae koekeishiya/formulae; do
-  brew tap "$tap" 2>/dev/null || true
-  brew trust --tap "$tap" 2>/dev/null || true
+# A fresh install isn't on PATH yet (Apple Silicon puts it in /opt/homebrew).
+for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [[ -x "$b" ]]; then eval "$("$b" shellenv)"; break; fi
 done
 
-say "Running brew bundle…"
-brew bundle --file="$DOTFILES/Brewfile" || warn "Some items failed — see output above. Re-run bootstrap after fixing."
+if (( MINIMAL )); then
+  BREWFILE="$DOTFILES/Brewfile.dev"
+else
+  BREWFILE="$DOTFILES/Brewfile"
+  say "Trusting third-party taps (required since Homebrew 4.x)…"
+  for tap in FelixKratz/formulae koekeishiya/formulae; do
+    brew tap "$tap" 2>/dev/null || true
+    brew trust --tap "$tap" 2>/dev/null || true
+  done
+fi
+
+say "Running brew bundle ($(basename "$BREWFILE"))…"
+brew bundle --file="$BREWFILE" || warn "Some items failed — see output above. Re-run bootstrap after fixing."
 ok "brew bundle finished"
 
 # ── Python debugger for Neovim ──
@@ -72,6 +96,19 @@ if [[ ! -x "$HOME/.local/share/nvim/debugpy/bin/python" ]] && command -v uv >/de
   uv venv --quiet "$HOME/.local/share/nvim/debugpy" && \
     uv pip install --quiet --python "$HOME/.local/share/nvim/debugpy/bin/python" debugpy && ok "debugpy ready" \
     || warn "debugpy venv failed — Python debugging in Neovim will be unavailable"
+fi
+
+if (( MINIMAL )); then
+  cat <<'DONE'
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅  Dev core ready. Open Ghostty (or run `exec zsh`), then `nvim` —
+    LazyVim installs its plugins and LSPs on first launch.
+
+Whole rice later (bar, borders, Hammerspoon…):  ~/dotfiles/bootstrap.sh
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DONE
+  exit 0
 fi
 
 # ── Services ──

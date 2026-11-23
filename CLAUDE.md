@@ -2,6 +2,12 @@
 
 Keyboard-first setup on native macOS desktops — **no tiling window manager** (see *Window management* below). Everything here is symlinked into place by `./bootstrap.sh`.
 
+`./bootstrap.sh --minimal` is the second-machine mode: dev core links only and
+`Brewfile.dev` (no bar, borders, Hammerspoon, widgets or `defaults`). `Brewfile`
+pulls `Brewfile.dev` in with `instance_eval`, so a dev tool goes in
+`Brewfile.dev` once — never in both. Anything `.zshrc` calls unconditionally
+must be in `Brewfile.dev`; guard machine-specific installer lines with a check.
+
 **Edit files in `~/dotfiles`, never in `~/.config`** — the latter are symlinks to the former. `git status` from `~/dotfiles` is the source of truth for what changed.
 
 Full prose reference lives in Obsidian at `LifeVault/05 Resources/macOS Rice Reference.md`. **Keep it in sync** when you change behavior — it documents keybindings, capabilities, and use cases, and it is the thing the user actually reads.

@@ -1,0 +1,30 @@
+# Dev core — what `./bootstrap.sh --minimal` installs on a second machine:
+# terminal, shell, Neovim (LazyVim) and git tooling. No window management,
+# bar, wallpaper or desktop widgets. The full Brewfile includes this file.
+
+# ── Terminal ─────────────────────────────────────────────────────────
+cask "ghostty"
+cask "font-jetbrains-mono-nerd-font"
+cask "font-iosevka-nerd-font"
+brew "zellij"
+brew "starship"
+
+# ── Shell ergonomics (.zshrc calls every one of these) ───────────────
+brew "atuin"
+brew "zoxide"
+brew "fzf"
+brew "eza"
+brew "bat"
+brew "ripgrep"
+brew "fd"
+brew "jq"                      # SketchyBar plugins + proj --json use it
+brew "yq"
+
+# ── Editor & git ─────────────────────────────────────────────────────
+brew "neovim"
+brew "tree-sitter-cli"         # Neovim: nvim-treesitter (main) compiles parsers with it
+brew "node"                    # Mason installs the TS + Python (Pyright) LSPs with npm
+brew "uv"                      # debugpy venv for nvim-dap-python
+brew "lazygit"                 # git tab in the proj-* Zellij layouts
+brew "git-delta"
+brew "gh"                      # GitHub CLI

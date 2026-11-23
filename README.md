@@ -19,13 +19,17 @@ Full plan: `~/.claude/plans/i-have-been-researching-snazzy-umbrella.md`
 
 ## First-time install
 
+On a fresh Mac (Homebrew's installer also brings in git via the Xcode Command Line Tools):
+
 ```sh
-git clone <this-repo> ~/dotfiles
-cd ~/dotfiles
-./bootstrap.sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+eval "$(/opt/homebrew/bin/brew shellenv)" && brew install gh && gh auth login
+gh repo clone QuasiBroom14489/dotfiles ~/dotfiles && ~/dotfiles/bootstrap.sh --minimal
 ```
 
-`bootstrap.sh` symlinks every config into place, then runs `brew bundle`. Anything requiring GUI permissions (Karabiner, Hammerspoon accessibility) is printed as a post-install checklist.
+`--minimal` sets up the dev core only: Ghostty, zsh + Starship/Atuin/zoxide/fzf, Neovim (LazyVim), lazygit, Zellij and `proj` (packages in `Brewfile.dev`). Drop the flag for the whole rice: SketchyBar, borders, Karabiner, Hammerspoon, Übersicht, wallpaper and Dock defaults (`Brewfile`, which includes `Brewfile.dev`).
+
+`bootstrap.sh` symlinks configs into place, then runs `brew bundle`. Both modes are idempotent; re-run it to go from minimal to full. Anything requiring GUI permissions (Karabiner, Hammerspoon accessibility) is printed as a post-install checklist.
 
 ## Layout
 

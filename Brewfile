@@ -1,33 +1,18 @@
 # Homebrew Bundle — install with `brew bundle --file=~/dotfiles/Brewfile`
 # Grouped by rice-plan band. Comment out anything you're not ready for yet.
 
+# ── Dev core (terminal, shell, Neovim, git) ─────────────────────────
+# Lives in Brewfile.dev so `./bootstrap.sh --minimal` can install it alone.
+instance_eval(File.read(File.expand_path("~/dotfiles/Brewfile.dev")))
+
 # ── Taps ─────────────────────────────────────────────────────────────
 tap "FelixKratz/formulae"      # SketchyBar + JankyBorders
 tap "koekeishiya/formulae"     # SKHD (optional)
 
 # ── Band 1: Foundation ───────────────────────────────────────────────
 cask "karabiner-elements"
-cask "ghostty"
 cask "raycast"
-cask "font-jetbrains-mono-nerd-font"
-cask "font-iosevka-nerd-font"
 brew "borders"                 # JankyBorders
-
-# ── Band 2: Terminal ergonomics ──────────────────────────────────────
-brew "zellij"
-brew "starship"
-brew "atuin"
-brew "zoxide"
-brew "fzf"
-brew "eza"
-brew "bat"
-brew "ripgrep"
-brew "fd"
-brew "git-delta"
-brew "jq"                      # SketchyBar plugins + proj --json use it
-brew "lazygit"                 # git tab in the proj-* Zellij layouts
-brew "tree-sitter-cli"         # Neovim: nvim-treesitter (main) compiles parsers with it
-brew "yq"
 
 # ── Band 3: Scripting & agents ───────────────────────────────────────
 cask "hammerspoon"
@@ -51,12 +36,10 @@ cask "shottr"                  # free screenshot tool; swap for cleanshot-x if y
 
 # ── Band 6+: Polish ──────────────────────────────────────────────────
 cask "maccy"                   # or skip if using Raycast clipboard
-brew "neovim"
 brew "chezmoi"                 # dotfiles manager (upgrade path from stow)
 brew "stow"                    # simple symlink manager (starting point)
 brew "tmux"                    # keep around as fallback
 brew "wget"
-brew "gh"                      # GitHub CLI
 
 # ── Diagnostics ──────────────────────────────────────────────────
 brew "bottom"                  # Cross-platform system monitor (`btm`)
